@@ -21,12 +21,14 @@ def skin_detect(img_path):
 
     # apply a series of erosions and dilations to the mask
     # using an elliptical kernel
+    '''
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
     skinMask = cv2.erode(skinMask, kernel, iterations = 2)
     skinMask = cv2.dilate(skinMask, kernel, iterations = 2)
 
     # blur the mask to help remove noise
     skinMask = cv2.GaussianBlur(skinMask, (3, 3), 0)
+    '''
     # show skin with other parts masked
     skin = cv2.bitwise_and(img, img, mask = skinMask)
     cv2.imshow('sample image', np.hstack([img, skin]))
@@ -34,7 +36,7 @@ def skin_detect(img_path):
     cv2.destroyAllWindows()
 
 def main():
-    skin_detect('./images/input_teaser.png')
+    skin_detect('./images/tiny_face.png')
     return 0
 
 if __name__ == '__main__':
