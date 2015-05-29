@@ -6,9 +6,12 @@ Basic knowledge and detailed steps.
 
 ## Skin Detection Example using Python and Opencv [HTML](http://www.pyimagesearch.com/2014/08/18/skin-detection-step-step-example-using-python-opencv/)
 
-## Numpy access pixel item [HTML](https://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_core/py_basic_ops/py_basic_ops.html#accessing-and-modifying-pixel-values)
+## Performance mesure
+### Numpy access pixel item [HTML](https://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_core/py_basic_ops/py_basic_ops.html#accessing-and-modifying-pixel-values)
 
-## Performance and optimization [HTML](https://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_core/py_optimization/py_optimization.html#optimization-techniques)
+### Performance and optimization [HTML](https://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_core/py_optimization/py_optimization.html#optimization-techniques)
+
+### Optimize threshold [HTML](https://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_imgproc/py_thresholding/py_thresholding.html#thresholding)
 
 ## Face enhancement
 
