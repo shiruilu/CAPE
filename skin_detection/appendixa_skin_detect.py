@@ -9,6 +9,9 @@ import numpy as np
 import cv2
 import time
 
+IMG_DIR = '../resources/images/'
+BM_DIR = './benchmarks/'
+
 def ellipse_test(A, B, bound=1.0):
     '''test a CIELab color falls in certain ellipse'''
     return (1.0*(A-143)/6.5)**2 + (1.0*(B-148)/12)**2 < bound
@@ -43,7 +46,7 @@ def skin_detect(img_path):
     skin = cv2.bitwise_and(img, img, mask = skinMask)
     cv2.imshow('skin detect image', np.hstack([img, skin]))
     cv2.waitKey(0)
-    cv2.imwrite('./benchmarks/ellipse_test_and_relaxed_ellipse.png', np.hstack([img, skin]))
+    cv2.imwrite(BM_DIR+'ellipse_test_and_relaxed_ellipse.png', np.hstack([img, skin]))
     cv2.destroyAllWindows()
 
 def test_ell():
@@ -53,7 +56,7 @@ def test_ell():
 def main():
     #test_ell()
     #skin_detect('./images/tiny_face.png')
-    skin_detect('./images/input_teaser.png')
+    skin_detect(IMG_DIR+'input_teaser.png')
     return 0
 
 if __name__ == '__main__':

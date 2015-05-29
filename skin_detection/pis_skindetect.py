@@ -13,6 +13,7 @@ import cv2
 # intensities to be considered 'skin'
 lower = np.array([0, 48, 80], dtype = "uint8")
 upper = np.array([20, 255, 255], dtype = "uint8")
+IMG_DIR = '../resources/images/'
 
 def skin_detect(img_path):
     img = cv2.imread(img_path)
@@ -36,7 +37,7 @@ def skin_detect(img_path):
     cv2.destroyAllWindows()
 
 def main():
-    skin_detect('./images/tiny_face.png')
+    skin_detect(IMG_DIR+'tiny_face.png')
     return 0
 
 if __name__ == '__main__':
