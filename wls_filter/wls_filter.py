@@ -39,5 +39,32 @@ def test_wlsfilter():
     plt.imshow(numpy.hstack([image,numpy.rollaxis(out,1),numpy.rollaxis(detail,1)]), 'gray')
     plt.show()
 
+def test_luminance():
+    lambda_ = 0.1
+    alpha = 1.2
+    image = cv2.imread(IMG_DIR+'input_teaser.png')
+    image_LAB = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    image_lumi = image_LAB[...,0].astype(numpy.float)/255.0 #don't forget to normalize
+    out, detail = wlsfilter(image_lumi, lambda_, alpha)
+    image_base = numpy.zeros(image.shape)
+    image_base[..., 0] = (numpy.rollaxis(out,1) *255.0)
+    image_base[..., 1] = image_LAB[...,1]
+    image_base[..., 2] = image_LAB[...,2]
+    numpy.clip(image_base, 0, 255, out=image_base)
+    image_base = image_base.astype('uint8')
+
+    image_detail = numpy.zeros(image.shape)
+    image_detail[..., 0] = (numpy.rollaxis(detail,1) *255.0)
+    image_detail[..., 1] = image_LAB[...,1]
+    image_detail[..., 2] = image_LAB[...,2]
+    numpy.clip(image_detail, 0, 255, out=image_detail)
+    image_detail = image_detail.astype('uint8')
+
+    image_RGB = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    image_base_RGB = cv2.cvtColor(image_base, cv2.COLOR_LAB2RGB)
+    image_detail_RGB = cv2.cvtColor(image_detail, cv2.COLOR_LAB2RGB)
+    plt.imshow(numpy.hstack([image_RGB, image_base_RGB, image_detail_RGB]), cmap='jet')
+    plt.show()
+
 if __name__ == '__main__':
-    test_wlsfilter()
+    test_luminance()
