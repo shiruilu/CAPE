@@ -21,6 +21,8 @@ Basic knowledge and detailed steps.
 
 [TA05] Adaptive and integrated neighborhood-dependent approach for nonlinear enhancement of color images [PPT](http://cilab.knu.ac.kr/seminar/Seminar/2006/20060121%20Adaptive%20and%20integrated%20neighborhood-dependent%20approach%20for%20nonlinear%20enhancement%20of%20color%20images.pdf)
 
+[TA05] Understanding discrete convolution (image processing discipline) [PDF](http://www.cs.umd.edu/~djacobs/CMSC426/Convolution.pdf)
+
 ## Face detection
 [VJ04] Viola Jones face detection, an implementation in opencv [HTML](http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_objdetect/py_face_detection/py_face_detection.html)
 
