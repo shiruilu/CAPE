@@ -96,5 +96,12 @@ def _test_all():
     plt.imshow( np.hstack([I_rgb, S_display]) )
     plt.show()
 
+def aindane(I_bgr):
+    I, In_prime = ale(I_bgr)
+    S = ace(I, In_prime, c=240)
+    S_restore = color_restoration(I_bgr, I, S, [1,1,1]) # choose default lambda as all 1s
+    S_bgr = np.clip(S_restore, 0, 255).astype('uint8')
+    return S_bgr
+
 if __name__ == '__main__':
     _test_all()
