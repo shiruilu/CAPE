@@ -44,6 +44,7 @@ def ace(I, In_prime, c=5):
     # http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_imgproc/py_transforms/py_fourier_transform/py_fourier_transform.html
     gaussian_x = cv2.getGaussianKernel(int(round(sigma*3)), int(round(sigma))) ##CAUTION, sigma is int??
     gaussian = gaussian_x*gaussian_x.T
+    gaussian = gaussian / np.sum(gaussian)
     gaussian_freq_shift = np.fft.fftshift( np.fft.fft2(gaussian, I.shape) ) ##gaussian kernel padded with 0, extend to image.shape
 
     # from http://opencv-python-tutroals.readthedocs.org/en/latest/py_tutorials/py_imgproc/py_transforms/py_fourier_transform/py_fourier_transform.html
@@ -78,9 +79,9 @@ def _test_color_restoration():
     color_restoration(I,I)
 
 def _test_all():
-    I_bgr = cv2.imread(IMG_DIR+'aindane_1_origin.png')
+    I_bgr = cv2.imread(IMG_DIR+'input_teaser.png')
     I, In_prime = ale(I_bgr)
-    S = ace(I, In_prime, c=5)
+    S = ace(I, In_prime, c=240)
     # S_20 = ace(I, In_prime, c=20)
     # S_240 = ace(I, In_prime, c=240)
     # restore using color_restoration (aindane paper)
