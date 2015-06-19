@@ -21,36 +21,25 @@ import docs_face_detector as vj_face
 
 import cv2
 import numpy as np
+import copy
 
 IMG_DIR = '../resources/images/'
 BM_DIR = './benchmarks/'
 
 def main():
-    I_bgr = cv2.imread(IMG_DIR+'input_teaser.png')
-    I_origin = I_bgr[:]
-    print I_bgr == I_origin
-    print I_bgr == I_origin
-    skin = apa_skin.skin_detect(I_bgr)
-    print I_bgr == I_origin
-    I_aindane = aindane.aindane(I_bgr)
-    cape_util.display(skin)
-
-    
-    
-    cape_util.display(I_bgr)
+    I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
+    I_bgr = copy.deepcopy(I_origin)
+    I_aindane = aindane.aindane(I_origin) # may change I_origin, use I_bgr after this line
+    #cape_util.display(I_bgr)
     faces_xywh = vj_face.face_detect(I_aindane)
     # cape_util.display(I_face_rectangle)
-    faces = []
-    for (x,y,w,h) in faces_xywh:
-        faces.append( I_bgr[y:y+h, x:x+w] )
+    faces = [ I_bgr[y:y+h, x:x+w] for (x,y,w,h) in faces_xywh ]
     # for face in faces:
     #     cape_util.display( face )
 
-    # skins = []
-    # for face in faces:
-    #     skins.append( apa_skin.skin_detect(I_aindane) )
-    # for skin in skins:
-    #     cape_util.display( skin )
+    skins = [ apa_skin.skin_detect(face) for face in faces ]
+    for skin in skins:
+        cape_util.display( skin )
     return 0
 
 if __name__ == '__main__':
