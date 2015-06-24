@@ -49,7 +49,7 @@ def ace(I, In_prime, c=5):
     image_fm = img_freq_shift * gaussian_freq_shift # element wise multiplication
     I_conv = np.real( np.fft.ifft2( np.fft.ifftshift(image_fm) ) ) # equation 6
 
-    sigma_I = np.array( np.std(I) ) # std of I,to an array, for np.piecewise
+    sigma_I = np.array( [np.std(I)] ) # std of I,to an array, for np.piecewise
     P = np.piecewise(sigma_I,
                      [ sigma_I<=3,
                        sigma_I>3 and sigma_I<10,
