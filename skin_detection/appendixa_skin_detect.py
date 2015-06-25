@@ -20,41 +20,56 @@ def ellipse_test(A, B, bound=1.0, prob=1.0):
 def check_neighbor(mask, i, j):
     '''for relaxed 4-neighbor test'''
     width, height = mask.shape
-    return int(mask[i-1,j]) + int(mask[(i+1)%width,j]) + int(mask[i,j-1]) + int(mask[i,(j+1)%height]) >= 255
+    sum = 0
+    for x in (-1,0,1):
+        for y in (-1,0,1):
+            if mask[(i+x)%width, (j+y)%height] == 255:
+                sum = sum + 1
+    return sum >= 3
 
 def HSV_threshold(H, S):
-    return not(S>=0.25*255 and S<=0.75*255 or H>0.095*180) #s:0.25~0.75, h>0.095
+    #s:0.25~0.75, h>0.095
+    return (S>=0.25*255 and S<=0.75*255 and H<0.095*180)
 
 def skin_detect(img):
     """img: in BGR mode"""
-    #img = cv2.imread(img_path)
     # initialized all-white mask
-    skinMask = 255*np.ones(img.shape[0:2], img.dtype)
+    skinMask = 255*np.zeros(img.shape[0:2], img.dtype)
     img_LAB = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
     img_HSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
     s = time.time()
     # ellipse and HSV_test
     for (i,j), value in np.ndenumerate(skinMask):
-        skinMask[i,j] = 255 if ellipse_test(img_LAB[i,j][1], img_LAB[i,j][2], bound=1.0, prob=1.0) and HSV_threshold(img_HSV[i,j][0], img_HSV[i,j][1]) else 0
+        skinMask[i,j] = 255 \
+            if ellipse_test(img_LAB[i,j][1], img_LAB[i,j][2], \
+                            bound=1.0, prob=1.0) \
+               and HSV_threshold(img_HSV[i,j][0], img_HSV[i,j][1]) \
+            else 0
 
     print time.time()-s
     # relaxed ellipse test, guarenteed by skin neighborhood
     for (i,j), value in np.ndenumerate(skinMask):
         if skinMask[i,j] ==0:
-            skinMask[i,j] = 255 if ellipse_test(img_LAB[i,j][1], img_LAB[i,j][2], bound=1.25, prob=1.0) and check_neighbor(skinMask, i, j) else 0
+            skinMask[i,j] = 255 \
+                if ellipse_test(img_LAB[i,j][1], img_LAB[i,j][2], \
+                                bound=1.25, prob=1.0) \
+                   and check_neighbor(skinMask, i, j) \
+                else 0
 
     print time.time()-s
-    skin = cv2.bitwise_and(img, img, mask = skinMask)
-    return skin
+    # initialization, can't remove, otherwise mask==0 area will be random
+    skin = 255*np.ones(img.shape, img.dtype)
+    skin = cv2.bitwise_and(img, img, mask=skinMask)
+    # if ( not (skin.shape[:2] == skinMask.shape).all() ):
+        # print 'weired: ', skin.shape[:2], skinMask.shape
+    return skin, skinMask
 
 def test_ell():
     print ellipse_test(143, 148) # true, center
     print ellipse_test(143, 160) # edge case, false
 
 def main():
-    #test_ell()
-    #skin_detect('./images/tiny_face.png')
     img = cv2.imread(IMG_DIR+'input_teaser.png')
     skin = skin_detect( img )
     plt.imshow( cv2.cvtColor(np.hstack([img, skin]), cv2.COLOR_BGR2RGB) )
