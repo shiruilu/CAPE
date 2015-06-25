@@ -7,7 +7,22 @@ import matplotlib.pyplot as plt
 IMG_DIR = '../resources/images/'
 small_eps = 0.0001
 
-def wlsfilter(image, lambda_, alpha):
+def wlsfilter(image, lambda_=0.1, alpha=1.2):
+    """
+    !!! Note: returning 0-255 may lose precision, or cause addition to more than 255(overflow)
+
+    ARGs:
+    -----
+    image: 0-255, uint8, single channel (e.g. grayscale or single L)
+    lambda_:
+    alpha:
+
+    RETURN:
+    -----
+    out: base, 0-255, uint8
+    detail: detail, 0-255, uint8
+    """
+    image = image.astype(numpy.float)/255.0
     s = image.shape
 
     k = numpy.prod(s)
@@ -27,10 +42,15 @@ def wlsfilter(image, lambda_, alpha):
 
     d = 1 - (dx + numpy.roll(dx, s[0]) + dy + numpy.roll(dy, 1))
     a = a + a.T + spdiags(d, 0, k, k)
-    out = spsolve(a, image.flatten(1)).reshape(s[::-1])
-    return out, numpy.rollaxis(image,1)-out
+    _out = spsolve(a, image.flatten(1)).reshape(s[::-1])
+    _out = numpy.rollaxis(_out,1)
+    out = numpy.clip( _out*255.0, 0, 255).astype('uint8')
+    _detail = image - _out
+    detail = numpy.clip( _detail*255.0, 0, 255 ).astype('uint8')
+    return out, detail
 
 def test_wlsfilter():
+    """deprecated, need to remove rollaxis"""
     lambda_ = 0.1
     alpha = 1.2
     image = cv2.imread(IMG_DIR+'easter.png')
