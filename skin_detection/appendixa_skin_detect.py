@@ -65,13 +65,9 @@ def skin_detect(img):
         # print 'weired: ', skin.shape[:2], skinMask.shape
     return skin, skinMask
 
-def test_ell():
-    print ellipse_test(143, 148) # true, center
-    print ellipse_test(143, 160) # edge case, false
-
 def main():
-    img = cv2.imread(IMG_DIR+'input_teaser.png')
-    skin = skin_detect( img )
+    img = cv2.imread(IMG_DIR+'teaser_face.png')
+    skin, _ = skin_detect( img )
     plt.imshow( cv2.cvtColor(np.hstack([img, skin]), cv2.COLOR_BGR2RGB) )
     plt.show()
     return 0
