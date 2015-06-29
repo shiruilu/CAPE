@@ -25,13 +25,59 @@ from matplotlib import pyplot as plt
 # from sklearn import mixture
 # from sklearn import cluster
 from scipy.signal import argrelextrema
+import pdb
 
 
 IMG_DIR = '../resources/images/'
 BM_DIR = './benchmarks/'
 
+def detect_bimodal(H):
+    """
+    H: all the (smoothed) histograms of faces on the image
+    RETURN:
+    bimodal_Fs: True means detected
+                False means undetected (i.e. not bimodal)
+                None means not sure, will plot H[i] for analysis
+    """
+    # argrelextrema return (array([ 54, 132]),) (a tuple), only [0] used for 1d
+    maximas_Fs = [ argrelextrema(h, np.greater, order=10)[0] for h in H ]
+    # argrelextrema return (array([ 54, 132]),) (a tuple), only [0] used for 1d
+    minimas_Fs = [ argrelextrema(h, np.less, order=10)[0] for h in H ]
+    # for visualizing the bimodal:
+    # print "maximas each face(hist): ", maximas_Fs, "minimas each face(hist): ", minimas_Fs
+    # plt.plot(H[i]); plt.xlim([1,256]); plt.show()
+    bimodal_Fs = np.zeros(len(H) ,dtype=bool)
+    D = np.zeros(len(H)); M = np.zeros(len(H)); B = np.zeros(len(H));
+    for i in range(len(H)): # each face i
+        tot_face_pix = np.sum(H[i])
+        print 'tot_face_pix: ',tot_face_pix
+        print 'cumsum: ', H[i].cumsum()[-1]
+        # pdb.set_trace()
+        if len(maximas_Fs[i]) ==2 and len(minimas_Fs[i]) ==1: #bimodal detected
+            d = H[i][maximas_Fs[i][0]]
+            b = H[i][maximas_Fs[i][1]]
+            m = H[i][minimas_Fs[i][0]]
+            print 'd,b,m: ',d,b,m
+            B[i] = b; M[i] = m; D[i] = d;
+            if d >=0.05*tot_face_pix and b >=0.05*tot_face_pix and (m <=0.8*d and m <=0.8*b):
+                bimodal_Fs[i] = True
+        elif len(maximas_Fs[i]) >2 or len(minimas_Fs[i]) >1:
+            print '?? more than two maximas, or more than one minima, see the plot'
+            plt.plot(H[i]); plt.xlim([1,256]); plt.show()
+            bimodal_Fs[i] = None
+        else:
+            None
+    return bimodal_Fs, D, M, B
+
+def EACP(A):
+    """
+    Edge-aware constraint propagation
+    """
+    
+    return A
+    
 def main():
-    I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
+    I_origin = cv2.imread(IMG_DIR+'pic4.jpg')
     _I_LAB = cv2.cvtColor(I_origin, cv2.COLOR_BGR2LAB)
     # WLS filter, only apply to L channel
     I = _I_LAB[...,0]
@@ -53,29 +99,25 @@ def main():
         cape_util.display( s, mode='gray')
     _H = [ cv2.calcHist([s],[0],None,[255],[1,256]).T.ravel() for s in S ] #cv2.calcHist return 2d vector
     # smooth hist, correlate only take 1d input
-    # http://stackoverflow.com/a/13730506/2729100
     H = [ np.correlate(_h, cv2.getGaussianKernel(30,10).ravel(), 'same') \
           for _h in _H ]
     # for s in S:
         # plt.hist(s.ravel(), 255, [1,256]); plt.xlim([1,256]); plt.show() # don't include 0(masked)
-    for i in range(len(S)):
-        # http://scikit-learn.org/0.10/modules/generated/sklearn.mixture.GMM.html
-        # test with gmm
-        # gmm_2 = mixture.GMM(n_components=2)
-        # gmm_2.fit( h.reshape(len(h),1) )
-        # print gmm_2.means
-        # test with k-means
-        # _kmeans = cluster.KMeans(k=3)
-        # _kmeans.fit( S[i].reshape(-1,1) )
-        # print _kmeans.cluster_centers_
+    # bimodal face
+    bimodal_Fs, D, M, B = detect_bimodal(H)
+    As = []
+    for i in bimodal_Fs:
+        if bimodal_Fs[i] == True:
+            b = B[i]; d = D[i]; m = M[i];
+            f = (b-d) / (m-d)
+            A = np.ones(S.shape)
+            A[S[i][:] <m] = f
+            As.append(A)
+            EACP(A)
+        else:
+            As.append(np.array([]))
 
-        # http://stackoverflow.com/a/13491866/2729100
-        # order: how many data points to consider on each side:
-        # http://docs.scipy.org/doc/scipy-dev/reference/generated/scipy.signal.argrelextrema.html
-        maximas = argrelextrema(H[i], np.greater, order=10)
-        minimas = argrelextrema(H[i], np.less, order=10)
-        print "maximas: ", maximas, "minimas: ", minimas
-        plt.plot(H[i]); plt.xlim([1,256]); plt.show()
+
     return 0
 
 if __name__ == '__main__':
