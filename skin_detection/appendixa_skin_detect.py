@@ -21,11 +21,11 @@ def check_neighbor(mask, i, j):
     '''for relaxed 4-neighbor test'''
     width, height = mask.shape
     sum = 0
-    for x in (-1,0,1):
-        for y in (-1,0,1):
+    for x in range(-12,13,2):
+        for y in range(-12,13,2):
             if mask[(i+x)%width, (j+y)%height] == 255:
                 sum = sum + 1
-    return sum >= 3
+    return sum >= 1
 
 def HSV_threshold(H, S):
     #s:0.25~0.75, h>0.095
@@ -53,7 +53,7 @@ def skin_detect(img):
         if skinMask[i,j] ==0:
             skinMask[i,j] = 255 \
                 if ellipse_test(img_LAB[i,j][1], img_LAB[i,j][2], \
-                                bound=1.25, prob=1.0) \
+                                bound=3.0, prob=1.0) \
                    and check_neighbor(skinMask, i, j) \
                 else 0
 

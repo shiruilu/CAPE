@@ -97,6 +97,7 @@ def main():
                for i in range(len(_I_out_faces)) ]
     for s in S:
         cape_util.display( s, mode='gray')
+    # unsmoothed hist
     _H = [ cv2.calcHist([s],[0],None,[255],[1,256]).T.ravel() for s in S ] #cv2.calcHist return 2d vector
     # smooth hist, correlate only take 1d input
     H = [ np.correlate(_h, cv2.getGaussianKernel(30,10).ravel(), 'same') \

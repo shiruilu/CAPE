@@ -36,7 +36,7 @@ def ale(I_bgr):
     return I, In_prime
 
 def ace(I, In_prime, c=5):
-    """"ace algo in 3.2"""
+    """ace algo in 3.2"""
     sigma = sqrt(c**2 /2)
     img_freq = np.fft.fft2(I)
     img_freq_shift = np.fft.fftshift(img_freq)
@@ -64,7 +64,7 @@ def ace(I, In_prime, c=5):
 def color_restoration(I_bgr, I, S, lambdaa):
     S_restore = np.zeros(I_bgr.shape)
     for j in range(3): # b,g,r
-        S_restore[...,j] = S * (1.0* I_bgr[...,j] / I) * lambdaa[j]
+        S_restore[...,j] = S * ( 1.0* I_bgr[...,j] / (I + eps) ) * lambdaa[j]
     return S_restore
 
 def _test_ale():
