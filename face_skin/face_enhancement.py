@@ -20,15 +20,13 @@ import appendixa_skin_detect as apa_skin
 import wls_filter
 import docs_face_detector as vj_face
 
+from eacp import EACP
+
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.signal import argrelextrema
 import pdb
-
-# for EACP
-from scipy.sparse import spdiags
-from scipy.sparse.linalg import spsolve
 
 IMG_DIR = '../resources/images/'
 BM_DIR = './benchmarks/'
@@ -75,42 +73,6 @@ def detect_bimodal(H):
             None
     return bimodal_Fs, D, M, B
 
-def EACP(G, I, lambda_=0.2, alpha=1.0, eps=1e-4):
-    """
-    Edge-aware constraint propagation
-    From "Interactive Local Adjustment of Tonal Values"[LFUS06]
-    ARGs:
-    -----
-    G(A): will be g(x) in 3.2 of LFUS06, desired result.
-    I: will be transformed to L (log luminance channel)
-    """
-    if G.shape != I.shape:
-        raise ValueError('A and I are not in the same size')
-    L = np.log(I)
-    g = G.flatten(1)
-    s = L.shape
-
-    k = np.prod(s)
-    # L_i - L_j along y axis
-    dy = np.diff(L, 1, 0)
-    dy = -lambda_ / (np.absolute(dy) ** alpha + eps)
-    dy = np.vstack((dy, np.zeros(s[1], )))
-    dy = dy.flatten(1)
-    # L_i - L_j along x axis
-    dx = np.diff(L, 1, 1)
-    dx = -lambda_ / (np.absolute(dx) ** alpha + eps)
-    dx = np.hstack((dx, np.zeros(s[0], )[:, np.newaxis]))
-    dx = dx.flatten(1)
-    # A case: j \in N_4(i)  (neighbors of diagonal line)
-    a = spdiags(np.vstack((dx, dy)), [-s[0], -1], k, k)
-    # A case: i=j   (diagonal line)
-    d = 1 - (dx + np.roll(dx, s[0]) + dy + np.roll(dy, 1))
-    a = a + a.T + spdiags(d, 0, k, k) # A: put together
-    f = spsolve(a, g).reshape(s[::-1]) # slove Af  =  b =(w=1)*g and restore 2d
-    A = np.rollaxis(f,1)
-    # A = np.clip( _out*255.0, 0, 255).astype('uint8')
-    return A
-
 def main():
     I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
     _I_LAB = cv2.cvtColor(I_origin, cv2.COLOR_BGR2LAB)
@@ -151,7 +113,7 @@ def main():
             b = B[i]; d = D[i]; m = M[i];
             f = (b-d) / (m-d)
             A = np.ones(S[i].shape)
-            # pdb.set_trace()
+            pdb.set_trace()
             A[S[i][:] <m] = f
             A = EACP(A, _I_out_faces[i])
             _I_out_faces_sidelit_crrted[i]  = (_I_out_faces[i] * A).astype('uint8') # pixelwise mul
