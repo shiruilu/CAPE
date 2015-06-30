@@ -50,20 +50,18 @@ def detect_bimodal(H):
     D = np.zeros(len(H)); M = np.zeros(len(H)); B = np.zeros(len(H));
     for i in range(len(H)): # each face i
         tot_face_pix = np.sum(H[i])
-        print 'tot_face_pix: ',tot_face_pix
-        print 'cumsum: ', H[i].cumsum()[-1]
         # pdb.set_trace()
         if len(maximas_Fs[i]) ==2 and len(minimas_Fs[i]) ==1: #bimodal detected
-            d = H[i][maximas_Fs[i][0]]
-            b = H[i][maximas_Fs[i][1]]
-            m = H[i][minimas_Fs[i][0]]
+            d = maximas_Fs[i][0]
+            b = maximas_Fs[i][1]
+            m = minimas_Fs[i][0]
             print 'd,b,m: ',d,b,m
             B[i] = b; M[i] = m; D[i] = d;
-            # NOTICE: Here its 0.005 not 5%(as described in CAPE)!
+            # NOTICE: Here its 0.003 not 5%(as described in CAPE)!
             # 5% should be cumulated from several cylinders around the peak
             # Here it's ONLY the highest peak
-            if d >=0.005*tot_face_pix and b >=0.005*tot_face_pix \
-               and (m <=0.8*d and m <=0.8*b):
+            if H[i][d] >=0.003*tot_face_pix and H[i][b] >=0.003*tot_face_pix \
+               and (H[i][m] <=0.8*H[i][d] and H[i][m] <=0.8*H[i][b]):
                 bimodal_Fs[i] = True
         elif len(maximas_Fs[i]) >2 or len(minimas_Fs[i]) >1:
             print '?? more than two maximas, or more than one minima, see the plot'
@@ -72,6 +70,39 @@ def detect_bimodal(H):
         else:
             None
     return bimodal_Fs, D, M, B
+
+def sidelight_correction(I_out, H, S, faces_xywh):
+    bimodal_Fs, D, M, B = detect_bimodal(H)
+    A = np.ones(I_out.shape)
+    for i in range(len(bimodal_Fs)):
+        if bimodal_Fs[i] == True:
+            b = B[i]; d = D[i]; m = M[i];
+            f = (b-d) / (m-d)
+            x,y,w,h = faces_xywh[i]; A_face_view = A[y:y+h, x:x+w]; A_face_view[S[i][:] <m] = f
+        else:
+            print '? bimodal not detected on', i, 'th face'
+    A = EACP(A, I_out)
+    I_out_side_crr = (I_out * A).astype('uint8') # pixelwise mul
+    cape_util.display( I_out_side_crr, name='sidelight corrected, L' ,mode='gray')
+    return I_out_side_crr
+
+def exposure_correction(I_out_side_crr, skin_masks, faces_xywh):
+    A = np.ones(I_out_side_crr.shape)
+    for i in range(len(faces_xywh)):
+        x,y,w,h = faces_xywh[i]
+        face = I_out_side_crr[y:y+h, x:x+w]; # each sidelight corrected face (L channel)
+        skin_face = cv2.bitwise_and(face, skin_masks[i][1]) # skin on that face
+        cumsum = cv2.calcHist([skin_face],[0],None,[255],[1,256]).T.ravel().cumsum() # hist of the skin
+        p = np.searchsorted(cumsum, cumsum[-1]*0.75)
+        if p <120:
+            f = (120+p)/(2*p)
+            A_face_view = A[y:y+h, x:x+w]
+            A_face_view[face >0] = f # >0 means every pixel *\in S*
+            A = EACP(A, I_out_side_crr)
+
+    I_out_expo_crr = (I_out_side_crr * A).astype('uint8')
+    cape_util.display( I_out_expo_crr, name='exposure corrected L', mode='gray')
+    return I_out_expo_crr
 
 def main():
     I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
@@ -93,7 +124,7 @@ def main():
     S = [ cv2.bitwise_and(_I_out_faces[i], skin_masks[i][1]) \
                for i in range(len(_I_out_faces)) ]
     for s in S:
-        cape_util.display( s, mode='gray')
+        cape_util.display( s, name='detected skin of L channel', mode='gray')
         # plot original hist(rectangles form, of S). don't include 0(masked)
         plt.hist(s.ravel(), 255, [1,256]); plt.xlim([1,256]); plt.show()
     # unsmoothed hist (cv2.calcHist return 2d vector)
@@ -104,47 +135,13 @@ def main():
     # visualize smoothed hist
     for h in H:
         plt.plot(h); plt.xlim([1,256]); plt.show()
-    # bimodal face
-    bimodal_Fs, D, M, B = detect_bimodal(H)
-    As = []
-    _I_out_faces_sidelit_crrted = _I_out_faces[:] #initialize
-    for i in range(len(bimodal_Fs)):
-        if bimodal_Fs[i] == True:
-            b = B[i]; d = D[i]; m = M[i];
-            f = (b-d) / (m-d)
-            A = np.ones(S[i].shape)
-            pdb.set_trace()
-            A[S[i][:] <m] = f
-            A = EACP(A, _I_out_faces[i])
-            _I_out_faces_sidelit_crrted[i]  = (_I_out_faces[i] * A).astype('uint8') # pixelwise mul
-            cape_util.display( _I_out_faces_sidelit_crrted[i], mode='gray')
-        else:
-            As.append(None)
-    # Exposure correction
-    # pdb.set_trace()
-    S_sidelit_crrted = [ cv2.bitwise_and(_I_out_faces_sidelit_crrted[i], skin_masks[i][1]) \
-                         for i in range(len(_I_out_faces_sidelit_crrted)) ]
-    _H_sidelit_crrted = [ cv2.calcHist([s],[0],None,[255],[1,256]).T.ravel() for s in S_sidelit_crrted ]
-    _I_out_faces_expo_crrted = _I_out_faces_sidelit_crrted[:] #initialize
-    for i in range(len(_I_out_faces_sidelit_crrted)):
-        cumsum = _H_sidelit_crrted[i].cumsum()
-        p = np.searchsorted(cumsum, cumsum[-1]*0.75)
-        if p <120:
-            f = (120+p)/(2*p)
-            A = np.ones(S_sidelit_crrted[i].shape)
-            A[S_sidelit_crrted[i][:] >0] = f
-            A = EACP(A, _I_out_faces_sidelit_crrted[i])
-            _I_out_faces_expo_crrted[i] = (_I_out_faces_sidelit_crrted[i] * A).astype('uint8')
-            cape_util.display( _I_out_faces_expo_crrted[i], mode='gray')
 
-    # add back
-    for i in range(len(_I_out_faces_expo_crrted)):
-        x,y,w,h = faces_xywh[i]
-        I_out[y:y+h, x:x+w] = _I_out_faces_expo_crrted[i]
-    I_out = I_out + Detail
-    _I_LAB[...,0]=I_out
+    I_out_side_crr = sidelight_correction(I_out, H, S, faces_xywh)
+    I_out_expo_crr = exposure_correction(I_out_side_crr, skin_masks, faces_xywh)
+
+    _I_LAB[...,0] = I_out_expo_crr + Detail
     I_res = cv2.cvtColor(_I_LAB, cv2.COLOR_LAB2BGR)
-    cape_util.display(np.hstack([I_origin, I_res]), mode='bgr')
+    cape_util.display(np.hstack([I_origin, I_res]), name='final result', mode='bgr')
     return 0
 
 if __name__ == '__main__':
