@@ -5,11 +5,17 @@ from scipy.sparse.linalg import spsolve
 import matplotlib.pyplot as plt
 
 IMG_DIR = '../resources/images/'
-small_eps = 0.0001
 
-def wlsfilter(image, lambda_=0.1, alpha=1.2):
+def EACP_core(G, I, lambda_=0.2, alpha=1, small_eps=1e-4):
     """
-    !!! Note: returning 0-255 may lose precision, or cause addition to more than 255(overflow)
+    ? wls filter is using EACP as core idea
+    """
+    
+
+def wlsfilter(image, lambda_=0.1, alpha=1.2, small_eps=1e-4):
+    """
+    !!! Note: returning 0-255 may lose precision,
+              or cause addition to more than 255(overflow)
 
     ARGs:
     -----
