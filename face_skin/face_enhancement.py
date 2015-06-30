@@ -86,7 +86,7 @@ def sidelight_correction(I_out, H, S, faces_xywh):
     cape_util.display( I_out_side_crr, name='sidelight corrected, L' ,mode='gray')
     return I_out_side_crr
 
-def exposure_correction(I_out_side_crr, skin_masks, faces_xywh):
+def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh):
     A = np.ones(I_out_side_crr.shape)
     for i in range(len(faces_xywh)):
         x,y,w,h = faces_xywh[i]
@@ -98,7 +98,7 @@ def exposure_correction(I_out_side_crr, skin_masks, faces_xywh):
             f = (120+p)/(2*p)
             A_face_view = A[y:y+h, x:x+w]
             A_face_view[face >0] = f # >0 means every pixel *\in S*
-            A = EACP(A, I_out_side_crr)
+            A = EACP(A, I_out)
 
     I_out_expo_crr = (I_out_side_crr * A).astype('uint8')
     cape_util.display( I_out_expo_crr, name='exposure corrected L', mode='gray')
@@ -137,7 +137,7 @@ def main():
         plt.plot(h); plt.xlim([1,256]); plt.show()
 
     I_out_side_crr = sidelight_correction(I_out, H, S, faces_xywh)
-    I_out_expo_crr = exposure_correction(I_out_side_crr, skin_masks, faces_xywh)
+    I_out_expo_crr = exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh)
 
     _I_LAB[...,0] = I_out_expo_crr + Detail
     I_res = cv2.cvtColor(_I_LAB, cv2.COLOR_LAB2BGR)

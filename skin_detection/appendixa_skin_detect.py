@@ -53,7 +53,7 @@ def skin_detect(img):
         if skinMask[i,j] ==0:
             skinMask[i,j] = 255 \
                 if ellipse_test(img_LAB[i,j][1], img_LAB[i,j][2], \
-                                bound=3.0, prob=1.0) \
+                                bound=1.25, prob=0.9) \
                    and check_neighbor(skinMask, i, j) \
                 else 0
 

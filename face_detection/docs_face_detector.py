@@ -43,7 +43,7 @@ def face_detect(img):
     )
     # remove false positives in faces_xywh(half face) if skin portion < 0.3
     faces_xywh = [(x,y,w,h) for (x,y,w,h) in faces_xywh  \
-                  if sufficient_skin(apa_skin.skin_detect(img[y:y+h, x:x+w])[0], 0.41)]
+                  if sufficient_skin(apa_skin.skin_detect(img[y:y+h, x:x+w])[0], portion=0.3)]
     '''
     for (x,y,w,h) in faces_xywh:
         roi_gray = gray[y:y+h, x:x+w]
