@@ -7,7 +7,7 @@ skin detect from Appendix A of CAPE
 
 import numpy as np
 import cv2
-import time
+# import time
 import matplotlib.pyplot as plt
 
 IMG_DIR = '../resources/images/'
@@ -38,7 +38,7 @@ def skin_detect(img):
     img_LAB = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
     img_HSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
 
-    s = time.time()
+    # s = time.time()
     # ellipse and HSV_test
     for (i,j), value in np.ndenumerate(skinMask):
         skinMask[i,j] = 255 \
@@ -47,7 +47,7 @@ def skin_detect(img):
                and HSV_threshold(img_HSV[i,j][0], img_HSV[i,j][1]) \
             else 0
 
-    print time.time()-s
+    # print time.time()-s
     # relaxed ellipse test, guarenteed by skin neighborhood
     for (i,j), value in np.ndenumerate(skinMask):
         if skinMask[i,j] ==0:
@@ -57,7 +57,7 @@ def skin_detect(img):
                    and check_neighbor(skinMask, i, j) \
                 else 0
 
-    print time.time()-s
+    # print time.time()-s
     # initialization, can't remove, otherwise mask==0 area will be random
     skin = 255*np.ones(img.shape, img.dtype)
     skin = cv2.bitwise_and(img, img, mask=skinMask)

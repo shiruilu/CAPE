@@ -27,7 +27,7 @@ def sufficient_skin(skin_img, portion):
     '''
     img_gray = cv2.cvtColor( skin_img, cv2.COLOR_BGR2GRAY )
     ## ? bitwise_and behavior: if mask !=0, fill with 1
-    print 1.0*np.sum( img_gray !=1 ) / (img_gray.shape[0] * img_gray.shape[1])
+    print 'skin portion: ' ,1.0*np.sum( img_gray !=1 ) / (img_gray.shape[0] * img_gray.shape[1])
     return np.sum(img_gray !=1) >= portion *skin_img.shape[0] *skin_img.shape[1]
 
 def face_detect(img):
