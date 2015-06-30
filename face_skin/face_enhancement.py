@@ -154,11 +154,12 @@ def main():
             # pdb.set_trace()
             A[S[i][:] <m] = f
             A = EACP(A, _I_out_faces[i])
-            _I_out_faces_sidelit_crrted[i]  = _I_out_faces[i] * A # pixelwise mul
+            _I_out_faces_sidelit_crrted[i]  = (_I_out_faces[i] * A).astype('uint8') # pixelwise mul
             cape_util.display( _I_out_faces_sidelit_crrted[i], mode='gray')
         else:
             As.append(None)
     # Exposure correction
+    # pdb.set_trace()
     S_sidelit_crrted = [ cv2.bitwise_and(_I_out_faces_sidelit_crrted[i], skin_masks[i][1]) \
                          for i in range(len(_I_out_faces_sidelit_crrted)) ]
     _H_sidelit_crrted = [ cv2.calcHist([s],[0],None,[255],[1,256]).T.ravel() for s in S_sidelit_crrted ]
@@ -170,8 +171,8 @@ def main():
             f = (120+p)/(2*p)
             A = np.ones(S_sidelit_crrted[i].shape)
             A[S_sidelit_crrted[i][:] >0] = f
-            A = EACP(A, _I_out_faces_sidelit_crrted)
-            _I_out_faces_expo_crrted[i] = _I_out_faces_sidelit_crrted[i] * A
+            A = EACP(A, _I_out_faces_sidelit_crrted[i])
+            _I_out_faces_expo_crrted[i] = (_I_out_faces_sidelit_crrted[i] * A).astype('uint8')
             cape_util.display( _I_out_faces_expo_crrted[i], mode='gray')
 
     # add back
@@ -180,8 +181,8 @@ def main():
         I_out[y:y+h, x:x+w] = _I_out_faces_expo_crrted[i]
     I_out = I_out + Detail
     _I_LAB[...,0]=I_out
-    I_res = cv2.cvtColor(_I_LAB, cv2.COLOR_LAB2RGB)
-    cape_util.display(I_res)
+    I_res = cv2.cvtColor(_I_LAB, cv2.COLOR_LAB2BGR)
+    cape_util.display(np.hstack([I_origin, I_res]), mode='bgr')
     return 0
 
 if __name__ == '__main__':
