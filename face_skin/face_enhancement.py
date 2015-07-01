@@ -82,14 +82,15 @@ def sidelight_correction(I_out, H, S, faces_xywh):
             A[y:y+h, x:x+w][S[i][:] <m] = f;
         else:
             print '? bimodal not detected on', i, 'th face'
-    A = EACP(A, I_out)
-    I_out_side_crr = I_out * A
-    I_out_side_crr_cliped = np.clip(I_out_side_crr, 0, 255).astype('uint8') # pixelwise mul
+    # A = EACP(A, I_out)
+    I_out_side_crr = EACP(I_out *A, I_out)
+    I_out_side_crr_cliped = np.rint(I_out_side_crr).astype('uint8') # pixelwise mul
     cape_util.display( I_out_side_crr_cliped, name='sidelight corrected, L' ,mode='gray')
     return I_out_side_crr_cliped
 
 def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh):
     A = np.ones(I_out_side_crr.shape)
+    I_out_expo_crr = I_out_side_crr.copy()
     for i in range(len(faces_xywh)):
         x,y,w,h = faces_xywh[i]
         face = I_out_side_crr[y:y+h, x:x+w]; # each sidelight corrected face (L channel)
@@ -99,11 +100,11 @@ def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh):
         if p <120:
             f = (120+p)/(2*p)
             A[y:y+h, x:x+w][face >0] = f; # >0 means every pixel *\in S*
-            A = EACP(A, I_out)
+            I_out_expo_crr = EACP(A*I_out_side_crr, I_out)
 
-    I_out_expo_crr = np.clip(I_out_side_crr * A, 0, 255).astype('uint8')
-    cape_util.display( I_out_expo_crr, name='exposure corrected L', mode='gray')
-    return I_out_expo_crr
+    I_out_expo_crr_cliped = np.rint(I_out_expo_crr).astype('uint8')
+    cape_util.display( I_out_expo_crr_cliped, name='exposure corrected L', mode='gray')
+    return I_out_expo_crr_cliped
 
 def main():
     I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
@@ -111,8 +112,6 @@ def main():
     # WLS filter, only apply to L channel
     I = _I_LAB[...,0]
     Base, Detail = wls_filter.wlsfilter(I)
-    print 'I==Base+Detail? ', I == Base+Detail
-    print (I == Base+Detail).all()
     I_out = Base
     #"""
     I_aindane = aindane.aindane(I_origin)
