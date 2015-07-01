@@ -94,7 +94,7 @@ def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh):
     for i in range(len(faces_xywh)):
         x,y,w,h = faces_xywh[i]
         face = I_out_side_crr[y:y+h, x:x+w]; # each sidelight corrected face (L channel)
-        skin_face = cv2.bitwise_and(face, skin_masks[i][1]) # skin on that face
+        skin_face = cape_util.mask_skin(face, skin_masks[i][1]) # skin on that face
         cumsum = cv2.calcHist([skin_face],[0],None,[255],[1,256]).T.ravel().cumsum() # hist of the skin
         p = np.searchsorted(cumsum, cumsum[-1]*0.75)
         if p <120:
@@ -124,7 +124,8 @@ def main():
         # cape_util.display( skin )
 
     _I_out_faces = [ I_out[y:y+h, x:x+w] for (x,y,w,h) in faces_xywh ]
-    S = [ cv2.bitwise_and(_I_out_faces[i], skin_masks[i][1]) \
+    # ipdb.set_trace()
+    S = [ cape_util.mask_skin(_I_out_faces[i], skin_masks[i][1]) \
                for i in range(len(_I_out_faces)) ]
     for s in S:
         cape_util.display( s, name='detected skin of L channel', mode='gray')

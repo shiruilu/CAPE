@@ -8,6 +8,10 @@ Common utils for CAPE
 import cv2
 import matplotlib.pyplot as plt
 
+def mask_skin(img, mask):
+    img_cp = img.copy()
+    img_cp[ ~mask ] = 0 # non-skin area set to 0
+    return img_cp
 
 def display(img, name='', mode='bgr'):
     """

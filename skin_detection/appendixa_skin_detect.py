@@ -63,7 +63,7 @@ def skin_detect(img):
     skin = cv2.bitwise_and(img, img, mask=skinMask)
     # if ( not (skin.shape[:2] == skinMask.shape).all() ):
         # print 'weired: ', skin.shape[:2], skinMask.shape
-    return skin, skinMask
+    return skin, (skinMask/255).astype(bool)
 
 def main():
     img = cv2.imread(IMG_DIR+'teaser_face.png')
