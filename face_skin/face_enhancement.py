@@ -26,7 +26,7 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.signal import argrelextrema
-import pdb
+import ipdb
 
 IMG_DIR = '../resources/images/'
 BM_DIR = './benchmarks/'
@@ -78,13 +78,15 @@ def sidelight_correction(I_out, H, S, faces_xywh):
         if bimodal_Fs[i] == True:
             b = B[i]; d = D[i]; m = M[i];
             f = (b-d) / (m-d)
-            x,y,w,h = faces_xywh[i]; A_face_view = A[y:y+h, x:x+w]; A_face_view[S[i][:] <m] = f
+            x,y,w,h = faces_xywh[i]
+            A[y:y+h, x:x+w][S[i][:] <m] = f;
         else:
             print '? bimodal not detected on', i, 'th face'
     A = EACP(A, I_out)
-    I_out_side_crr = (I_out * A).astype('uint8') # pixelwise mul
-    cape_util.display( I_out_side_crr, name='sidelight corrected, L' ,mode='gray')
-    return I_out_side_crr
+    I_out_side_crr = I_out * A
+    I_out_side_crr_cliped = np.clip(I_out_side_crr, 0, 255).astype('uint8') # pixelwise mul
+    cape_util.display( I_out_side_crr_cliped, name='sidelight corrected, L' ,mode='gray')
+    return I_out_side_crr_cliped
 
 def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh):
     A = np.ones(I_out_side_crr.shape)
@@ -96,11 +98,10 @@ def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh):
         p = np.searchsorted(cumsum, cumsum[-1]*0.75)
         if p <120:
             f = (120+p)/(2*p)
-            A_face_view = A[y:y+h, x:x+w]
-            A_face_view[face >0] = f # >0 means every pixel *\in S*
+            A[y:y+h, x:x+w][face >0] = f; # >0 means every pixel *\in S*
             A = EACP(A, I_out)
 
-    I_out_expo_crr = (I_out_side_crr * A).astype('uint8')
+    I_out_expo_crr = np.clip(I_out_side_crr * A, 0, 255).astype('uint8')
     cape_util.display( I_out_expo_crr, name='exposure corrected L', mode='gray')
     return I_out_expo_crr
 
@@ -110,7 +111,10 @@ def main():
     # WLS filter, only apply to L channel
     I = _I_LAB[...,0]
     Base, Detail = wls_filter.wlsfilter(I)
+    print 'I==Base+Detail? ', I == Base+Detail
+    print (I == Base+Detail).all()
     I_out = Base
+    #"""
     I_aindane = aindane.aindane(I_origin)
     faces_xywh = vj_face.face_detect(I_aindane)
     faces = [ I_origin[y:y+h, x:x+w] for (x,y,w,h) in faces_xywh ]
@@ -135,13 +139,17 @@ def main():
     # visualize smoothed hist
     for h in H:
         plt.plot(h); plt.xlim([1,256]); plt.show()
-
+    # ipdb.set_trace()
     I_out_side_crr = sidelight_correction(I_out, H, S, faces_xywh)
     I_out_expo_crr = exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh)
 
     _I_LAB[...,0] = I_out_expo_crr + Detail
+    #"""
+    #_I_LAB[...,0] = Base + Detail
     I_res = cv2.cvtColor(_I_LAB, cv2.COLOR_LAB2BGR)
     cape_util.display(np.hstack([I_origin, I_res]), name='final result', mode='bgr')
+    print I_origin == I_res
+    print (I_origin == I_res).all()
     return 0
 
 if __name__ == '__main__':
