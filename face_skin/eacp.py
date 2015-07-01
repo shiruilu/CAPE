@@ -10,7 +10,7 @@ from scipy.sparse import spdiags
 from scipy.sparse.linalg import spsolve
 
 
-def EACP(G, I, lambda_=0.1, alpha=1.0, eps=1e-4):
+def EACP(G, I, lambda_=0.2, alpha=1.0, eps=1e-4):
     """
     Edge-aware constraint propagation
     From "Interactive Local Adjustment of Tonal Values"[LFUS06]

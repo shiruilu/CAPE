@@ -14,9 +14,6 @@ def EACP_core(G, I, lambda_=0.2, alpha=1, small_eps=1e-4):
 
 def wlsfilter(image_orig, lambda_=0.1, alpha=1.2, small_eps=1e-4):
     """
-    !!! Note: returning 0-255 may lose precision,
-              or cause addition to more than 255(overflow)
-
     ARGs:
     -----
     image: 0-255, uint8, single channel (e.g. grayscale or single L)
@@ -25,8 +22,8 @@ def wlsfilter(image_orig, lambda_=0.1, alpha=1.2, small_eps=1e-4):
 
     RETURN:
     -----
-    out: base, 0-255, uint8
-    detail: detail, 0-255, uint8
+    out: base, 0-1, float
+    detail: detail, 0-1, float
     """
     image = image_orig.astype(numpy.float)/255.0
     s = image.shape
@@ -49,13 +46,13 @@ def wlsfilter(image_orig, lambda_=0.1, alpha=1.2, small_eps=1e-4):
     d = 1 - (dx + numpy.roll(dx, s[0]) + dy + numpy.roll(dy, 1))
     a = a + a.T + spdiags(d, 0, k, k)
     _out = spsolve(a, image.flatten(1)).reshape(s[::-1])
-    _out = numpy.rollaxis(_out,1)
+    out = numpy.rollaxis(_out,1)
     # out = numpy.clip( _out*255.0, 0, 255).astype('uint8')
-    out = numpy.rint( _out*255.0 ).astype('uint8')
+    # out = numpy.rint( _out*255.0 ).astype('uint8')
     # _detail = image - _out
     # detail = numpy.clip( _detail*255.0, 0, 255 ).astype('uint8')
-    detail = image_orig - out
-    return out, detail
+    detail = image - out
+    return out, detail #float
 
 def test_wlsfilter():
     """deprecated, need to remove rollaxis"""
