@@ -41,7 +41,8 @@ def ace(I, In_prime, c=5):
     img_freq_shift = np.fft.fftshift(img_freq)
     # size of gaussian: 3*sigma(0.99...), cv2 require sigma to be int
     _gaussian_x = cv2.getGaussianKernel(int(round(sigma*3)), int(round(sigma)))
-    gaussian = (_gaussian_x * _gaussian_x.T) / np.sum(_gaussian_x * _gaussian_x.T) # normalize
+    gaussian = (_gaussian_x * _gaussian_x.T) \
+               / np.sum(_gaussian_x * _gaussian_x.T) # normalize
     ##gaussian kernel padded with 0, extend to image.shape
     gaussian_freq_shift = np.fft.fftshift( np.fft.fft2(gaussian, I.shape) )
 
@@ -75,7 +76,8 @@ def _test_ace():
     return 0
 
 def _test_color_restoration():
-    I_rgb = cv2.cvtColor(cv2.imread(IMG_DIR+'input_teaser.png'), cv2.COLOR_BGR2RGB)
+    I_rgb = cv2.cvtColor(cv2.imread(IMG_DIR+'input_teaser.png')
+                         , cv2.COLOR_BGR2RGB)
     I = cv2.cvtColor(I_rgb, cv2.COLOR_RGB2GRAY)
     color_restoration(I,I)
 
@@ -84,8 +86,9 @@ def _test_all():
     I, In_prime = ale(I_bgr)
     S = ace(I, In_prime, c=240)
     # restore using color_restoration (aindane paper)
-    S_restore = color_restoration(I_bgr, I, S, [1,1,1]) # choose default lambda as all 1s
-    S_display = cv2.cvtColor( np.clip(S_restore, 0, 255).astype('uint8'), cv2.COLOR_BGR2RGB)
+    S_restore = color_restoration(I_bgr, I, S, [1,1,1]) #default lambda as all 1s
+    S_display = cv2.cvtColor( np.clip(S_restore, 0, 255).astype('uint8')
+                              , cv2.COLOR_BGR2RGB)
     I_rgb = cv2.cvtColor( I_bgr, cv2.COLOR_BGR2RGB)
 
     plt.imshow( np.hstack([I_rgb, S_display]) )
@@ -94,7 +97,7 @@ def _test_all():
 def aindane(I_bgr):
     I, In_prime = ale(I_bgr)
     S = ace(I, In_prime, c=240)
-    S_restore = color_restoration(I_bgr, I, S, [1,1,1]) # choose default lambda as all 1s
+    S_restore = color_restoration(I_bgr, I, S, [1,1,1]) #default lambda as all 1s
     S_bgr = np.clip(S_restore, 0, 255).astype('uint8')
     return S_bgr
 
