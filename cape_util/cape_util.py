@@ -9,6 +9,12 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
+def frange(start, stop, step):
+    it = start
+    while(it < stop):
+        yield it
+        it += step
+
 def mask_skin(img, mask):
     img_cp = img.copy()
     img_cp[ ~mask ] = 0 # non-skin area set to 0

@@ -43,7 +43,7 @@ def detect_bimodal(H):
     maximas_Fs = [ argrelextrema(h, np.greater, order=10)[0] for h in H ]
     # argrelextrema return (array([ 54, 132]),) (a tuple), only [0] used for 1d
     minimas_Fs = [ argrelextrema(h, np.less, order=10)[0] for h in H ]
-    # to visualize the bimodal:
+    # # to visualize the bimodal:
     # print "maximas each face(hist): ", maximas_Fs, "minimas each face(hist): ", minimas_Fs
     # plt.plot(H[i]); plt.xlim([1,256]); plt.show()
     bimodal_Fs = np.zeros(len(H) ,dtype=bool)
@@ -55,7 +55,7 @@ def detect_bimodal(H):
             d = maximas_Fs[i][0]
             b = maximas_Fs[i][1]
             m = minimas_Fs[i][0]
-            print 'd,b,m: ',d,b,m
+            # print 'd,b,m: ',d,b,m
             B[i] = b; M[i] = m; D[i] = d;
             # NOTICE: Here its 0.003 not 5%(as described in CAPE)!
             # 5% should be cumulated from several cylinders around the peak
@@ -71,7 +71,7 @@ def detect_bimodal(H):
             None
     return bimodal_Fs, D, M, B
 
-def sidelight_correction(I_out, H, S, faces_xywh):
+def sidelight_correction(I_out, H, S, faces_xywh, _eacp_lambda_):
     I_out_255 = cape_util.mag(I_out, 'float')
     bimodal_Fs, D, M, B = detect_bimodal(H)
     A = np.ones(I_out_255.shape)
@@ -85,11 +85,11 @@ def sidelight_correction(I_out, H, S, faces_xywh):
         else:
             print '? bimodal not detected on', i, 'th face'
 
-    I_out_side_crr = EACP(I_out_255 *A, I_out_255)
-    cape_util.display( cape_util.mag(I_out_side_crr, 'trim'), name='sidelight corrected, L' ,mode='gray')
+    I_out_side_crr = EACP(I_out_255 *A, I_out_255, lambda_=_eacp_lambda_)
+    # cape_util.display( cape_util.mag(I_out_side_crr, 'trim'), name='sidelight corrected, L' ,mode='gray')
     return I_out_side_crr # float [0.0,255.0]
 
-def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh):
+def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh, _eacp_lambda_):
     I_out_255 = cape_util.mag(I_out, 'float')
     A = np.ones(I_out_side_crr.shape)
     I_out_expo_crr = I_out_side_crr.copy()
@@ -102,13 +102,12 @@ def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh):
         if p <120:
             f = (120+p)/(2*p)
             A[y:y+h, x:x+w][face >0] = f; # >0 means every pixel *\in S*
-            I_out_expo_crr = EACP(A*I_out_side_crr, I_out_255)
+            I_out_expo_crr = EACP(A*I_out_side_crr, I_out_255, lambda_=_eacp_lambda_)
 
-    cape_util.display( cape_util.mag(I_out_expo_crr, 'trim'), name='exposure corrected L', mode='gray')
+    # cape_util.display( cape_util.mag(I_out_expo_crr, 'trim'), name='exposure corrected L', mode='gray')
     return I_out_expo_crr
 
-def main():
-    I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
+def CAPE(I_origin, _eacp_lambda_=0.2):
     _I_LAB = cv2.cvtColor(I_origin, cv2.COLOR_BGR2LAB)
     # WLS filter, only apply to L channel
     I = _I_LAB[...,0]
@@ -122,27 +121,35 @@ def main():
     _I_out_faces = [ I_out[y:y+h, x:x+w] for (x,y,w,h) in faces_xywh ] # float [0,1]
     S = [ cape_util.mask_skin(_I_out_faces[i], skin_masks[i][1]) \
                for i in range(len(_I_out_faces)) ] # float [0,1]
-    for s in S:
-        cape_util.display( cape_util.mag(s), name='detected skin of L channel', mode='gray')
-        # plot original hist(rectangles form, of S). don't include 0(masked)
-        plt.hist(cape_util.mag(s).ravel(), 255, [1,256]); plt.xlim([1,256]); plt.show()
+    # for s in S:
+    #     cape_util.display( cape_util.mag(s), name='detected skin of L channel', mode='gray')
+    #     # plot original hist(rectangles form, of S). don't include 0(masked)
+    #     plt.hist(cape_util.mag(s).ravel(), 255, [1,256]); plt.xlim([1,256]); plt.show()
     # unsmoothed hist (cv2.calcHist return 2d vector)
     _H = [ cv2.calcHist([cape_util.mag(s)],[0],None,[255],[1,256]).T.ravel() for s in S ]
     # smooth hist, correlate only take 1d input
     H = [ np.correlate(_h, cv2.getGaussianKernel(30,10).ravel(), 'same') \
           for _h in _H ]
-    # visualize smoothed hist
-    for h in H:
-        plt.plot(h); plt.xlim([1,256]); plt.show()
+    # # visualize smoothed hist
+    # for h in H:
+    #     plt.plot(h); plt.xlim([1,256]); plt.show()
     # ipdb.set_trace()
-    I_out_side_crr = sidelight_correction(I_out, H, S, faces_xywh)
-    I_out_expo_crr = exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh)
+    I_out_side_crr = sidelight_correction(I_out, H, S, faces_xywh, _eacp_lambda_)
+    I_out_expo_crr = exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh, _eacp_lambda_)
 
     _I_LAB[...,0] = cape_util.mag( (I_out_expo_crr/255.0 + Detail) )
     I_res = cv2.cvtColor(_I_LAB, cv2.COLOR_LAB2BGR)
-    cape_util.display(np.hstack([I_origin, I_res]), name='final result', mode='bgr')
-    print I_origin == I_res
-    print (I_origin == I_res).all()
+    return I_res
+    # cape_util.display(np.hstack([I_origin, I_res]), name='final result, lambda= '+str(_eacp_lambda_), mode='bgr')
+    # print I_origin == I_res
+    # print (I_origin == I_res).all()
+
+def main():
+    I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
+    for lambda_ in cape_util.frange(0.2, 4.0, 0.2):
+        I_res = CAPE(I_origin, lambda_)
+        DIR = './eacp_lambda/'
+        cv2.imwrite( DIR+'eacp_lambda='+str(lambda_)+'.png', np.hstack([I_origin, I_res]) )
     return 0
 
 if __name__ == '__main__':
