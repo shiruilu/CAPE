@@ -7,7 +7,6 @@ skin detect from Appendix A of CAPE
 
 import numpy as np
 import cv2
-# import time
 import matplotlib.pyplot as plt
 from scipy.signal import correlate2d
 import ipdb
