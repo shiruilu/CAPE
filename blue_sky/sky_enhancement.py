@@ -22,7 +22,7 @@ import docs_face_detector as vj_face
 import cv2
 import numpy as np
 from scipy.stats import norm
-from scipy import ndimage
+from scipy import ndimage as ndi
 from matplotlib import pyplot as plt
 import ipdb
 
@@ -30,11 +30,12 @@ IMG_DIR = '../resources/images/'
 BM_DIR = './benchmarks/'
 
 def in_idea_blue_rg(I_origin):
-    IDEAL_SKY_BGR = (235, 190, 150)
-    RANGE = 30
-    return (abs(I_origin[...,0]-IDEAL_SKY_BGR[0]) < RANGE) \
-        & (abs(I_origin[...,1]-IDEAL_SKY_BGR[1]) < RANGE) \
-        & (abs(I_origin[...,2]-IDEAL_SKY_BGR[2]) < RANGE)
+    img = I_origin.astype(float)
+    IDEAL_SKY_BGR = (225, 190, 170)
+    RANGE = (25, 30, 50)
+    return (abs(img[...,0]-IDEAL_SKY_BGR[0]) < RANGE[0]) \
+        & (abs(img[...,1]-IDEAL_SKY_BGR[1]) < RANGE[1]) \
+        & (abs(img[...,2]-IDEAL_SKY_BGR[2]) < RANGE[2])
 
 def get_smoothed_hist(I_gray, ksize=30, sigma=10):
     """
@@ -60,42 +61,54 @@ def _var_lenpos(val, pos):
     return val, len(pos)
 
 def get_sky_ref_patch(f_gray_one_third):
-    lbl, nlbl = ndimage.label(f_gray_one_third)
+    lbl, nlbl = ndi.label(f_gray_one_third)
     lbls = np.arange(1, nlbl+1)
-    ipdb.set_trace()
-    val, lenpos = ndimage.labeled_comprehension(f_gray_one_third, lbl, lbls, _var_lenpos, float, 0, True)
-    pos = lenpos.argmax # pos of largest sky ref patch
+    # ipdb.set_trace()
+    _res = ndi.labeled_comprehension(f_gray_one_third, lbl, lbls, _var_lenpos, object, 0, True)
+    val = []; lenpos = [];
+    # ipdb.set_trace()
+    for idx, (_val, _lenpos) in np.ndenumerate(_res):
+        val.append(_val); lenpos.append(_lenpos)
+    # for idx, v in np.ndenumerate(_res):
+        # val.append(v[0]); lenpos.append(v[1])
+
+    pos = np.array(lenpos).argmax() # pos of largest sky ref patch
+    print 'max patch amount, patch: ', lenpos[pos], val[pos]
     mean = np.mean(val[pos])
-    variance = np.variance(val[pos])
+    variance = np.var(val[pos])
     return mean, variance
 
 def _get_top_one_third(img):
-    return img[0:img.shape[0],...]
+    return img[0:img.shape[0]*1.0/3,...]
 
 def sky_ref_patch_detection(I_origin):
     # blue sky color range:
     # http://colors.findthedata.com/q/402/10857/What-are-the-RGB-values-of-Sky-Blue
     I_gray = cv2.cvtColor(I_origin, cv2.COLOR_BGR2GRAY)
     sky_prob_map = np.zeros(I_gray.shape)
-    ipdb.set_trace()
+    # ipdb.set_trace()
     sky_prob_map[ in_idea_blue_rg(I_origin) ] = 1.0
-    _grad_x = np.absolute( cv2.Sobel(I_gray, cv2.CV_64F, 1, 0, ksize=5) )
-    _grad_y = np.absolute( cv2.Sobel(I_gray, cv2.CV_64F, 0, 1, ksize=5) )
+    # https://www.hdm-stuttgart.de/~maucher/Python/ComputerVision/html/Filtering.html
+    _grad_x = np.absolute( ndi.prewitt(I_gray, axis=1 ,mode='nearest') )
+    _grad_y = np.absolute( ndi.prewitt(I_gray, axis=0 ,mode='nearest') )
     _rv = norm(loc=0., scale=255./3.) # 3*sigma = 255, rv ~ random variable
     # ipdb.set_trace()
+    _grad_percent = 0.10 # 0.05 of the original paper
     sky_prob_map[ (sky_prob_map ==1.0) &
-                  ((_grad_x >0.05*255.) | (_grad_y >0.05*255.)) ] \
+                  ((_grad_x >_grad_percent*255.) | (_grad_y >_grad_percent*255.)) ] \
         = _rv.pdf( (_grad_x + _grad_y)/2.0 )[ (sky_prob_map ==1.0) &
-                  ((_grad_x >0.05*255.) | (_grad_y >0.05*255.)) ] # average of gradx, y
+                  ((_grad_x >_grad_percent*255.) | (_grad_y >_grad_percent*255.)) ] # average of gradx, y
     # _mask = np.ones(sky_prob_map.shape, dtype=bool)
     # _mask[sky_prob_map==0.0] = False
-    detect_res = cape_util.detect_bimodal( [get_smoothed_hist( cape_util.mask_skin(I_gray, sky_prob_map!=0.0) )] )[0] # detect_bimodal is an array f
+    _L = cv2.cvtColor(I_origin, cv2.COLOR_BGR2LAB)[...,0]
+    detect_res = cape_util.detect_bimodal( [get_smoothed_hist( cape_util.mask_skin(_L, sky_prob_map!=0.0) )] )[0] # detect_bimodal is an array f
     if (detect_res[0] == True): #could return F or None, must be ==True
+        print 'bimodal detected'
         sky_prob_map[ I_gray ==detect_res[1] ] = 0.0 #exclude pixels correspond to the dark mode
 
     S = []
     if ( np.sum( _get_top_one_third(sky_prob_map) ) !=0): # top 1/3 has sky
-        ipdb.set_trace()
+        # ipdb.set_trace()
         for i in range(3): #B, G, R
             masked_I_one_thrid = cape_util.mask_skin( # mask non-blue area 0, copy the rest
                 _get_top_one_third(I_origin)[...,i]
@@ -105,11 +118,16 @@ def sky_ref_patch_detection(I_origin):
             S.append(mean)
         _rv_sky_patch = norm(loc=mean, scale=var)
     # ipdb.set_trace()
+    print 'S(b,g,r): ',S
+    return S, sky_prob_map
+
+def decompose():
     return
 
 def main():
     I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
-    sky_ref_patch_detection(I_origin)
+    S, sky_prob_map = sky_ref_patch_detection(I_origin)
+    decompose()
     return 0
 
 if __name__ == '__main__':
