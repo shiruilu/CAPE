@@ -23,6 +23,7 @@ import cv2
 import numpy as np
 from scipy.stats import norm
 from scipy import ndimage as ndi
+from scipy import optimize
 from matplotlib import pyplot as plt
 import ipdb
 
@@ -121,13 +122,30 @@ def sky_ref_patch_detection(I_origin):
     print 'S(b,g,r): ',S
     return S, sky_prob_map
 
-def decompose():
+def sky_cloud_decompose(Sbgr, sky_pixels, lambda_=0.2):
+    # def R(S):
+        # return ((S-1) **2)[sky_pixels!=0]
+    def J(x):
+        # Alpha = x[0]; C = x[1]; S = x[2]
+        return (
+            (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[0] - sky_pixels[...,0])**2
+            + (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[1] - sky_pixels[...,1])**2
+            + (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[2] - sky_pixels[...,2])**2
+            + lambda_ * (x[2]-1.)**2
+        )[sky_pixels[...,0]!=0].sum()
+
+    # def f(x):
+        # J(x[0], x[1], x[2])
+
+    X = [np.zeros(sky_pixels.shape[0:2]) for i in range(3)]
+    # ipdb.set_trace()
+    print optimize.fmin_bfgs(J,X, maxiter=2)
     return
 
 def main():
     I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
     S, sky_prob_map = sky_ref_patch_detection(I_origin)
-    decompose()
+    sky_cloud_decompose(S, cape_util.mask_skin(I_origin, sky_prob_map.astype(bool))) #!! sky_prob_map should have 0~1 values, treat as 0?1?
     return 0
 
 if __name__ == '__main__':
