@@ -122,30 +122,60 @@ def sky_ref_patch_detection(I_origin):
     print 'S(b,g,r): ',S
     return S, sky_prob_map
 
-def sky_cloud_decompose(Sbgr, sky_pixels, lambda_=0.2):
+it = 0
+def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=0.2):
     # def R(S):
         # return ((S-1) **2)[sky_pixels!=0]
+    # idx = []; only_sky_pixels = [];
+    # for _idx, _bgr in np.ndenumerate(sky_prob_map):
+        # if (sky_prob_map[_idx] ==1.0):
+            # idx.append(_idx); only_sky_pixels.append(_bgr)
+
+    # ipdb.set_trace()
+    # idx = np.array(idx); only_sky_pixels = np.array(only_sky_pixels)
+    only_sky_pixels = sky_pixels[sky_pixels[...,0]>0]
+
+    def J_prime(x):
+        Alpha = x[0]; C = x[1]; S=x[2]
+        def u(i):
+            return x[0]*x[1] + (1-x[0])*x[2]*Sbgr[i] - only_sky_pixels[...,i]
+        J_alpha = 2*( u(0)*(C-S*Sbgr[0]) + u(1)*(C-S*Sbgr[1]) + u(2)*(C-S*Sbgr[2]) )
+        J_c = (2*(u(0)+u(1)+u(2)) * 3*Alpha)
+        J_s = ( (2*(1-Alpha)*(u(0)*Sbgr[0]+u(1)*Sbgr[1]+u(2)*Sbgr[2])) + 2*lambda_*(S-1) )
+        ipdb.set_trace()
+        return np.array( (J_alpha, J_c, J_s) )
+
     def J(x):
         # Alpha = x[0]; C = x[1]; S = x[2]
+        # global it
+        # it=it+1
+        # print 'iter: ', it
         return (
-            (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[0] - sky_pixels[...,0])**2
-            + (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[1] - sky_pixels[...,1])**2
-            + (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[2] - sky_pixels[...,2])**2
+            (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[0] - only_sky_pixels[...,0])**2
+            + (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[1] - only_sky_pixels[...,1])**2
+            + (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[2] - only_sky_pixels[...,2])**2
             + lambda_ * (x[2]-1.)**2
-        )[sky_pixels[...,0]!=0].sum()
+        ).sum()
 
     # def f(x):
         # J(x[0], x[1], x[2])
+    # for idx in range( ):
+        # if ( sky_pixels[...,0]!=0 ):
+    # n_sky_pixels = (sky_pixels[...,0]!=0).sum()
 
-    X = [np.zeros(sky_pixels.shape[0:2]) for i in range(3)]
+    X = [np.zeros( only_sky_pixels.shape[0] ) for i in range(3)]
+    print optimize.check_grad(J, J_prime, X)
     # ipdb.set_trace()
-    print optimize.fmin_bfgs(J,X, maxiter=2)
+    # print optimize.fmin_bfgs(J,X, fprime=J_prime)
+    # optimize.brute(J, X)
+    # numpy.mmap()
     return
 
 def main():
     I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
     S, sky_prob_map = sky_ref_patch_detection(I_origin)
-    sky_cloud_decompose(S, cape_util.mask_skin(I_origin, sky_prob_map.astype(bool))) #!! sky_prob_map should have 0~1 values, treat as 0?1?
+    #!! sky_prob_map should have 0~1 values, treat as 0?1?
+    sky_cloud_decompose(S, sky_prob_map, cape_util.mask_skin(I_origin, sky_prob_map.astype(bool)))
     return 0
 
 if __name__ == '__main__':
