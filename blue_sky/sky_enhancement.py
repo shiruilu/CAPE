@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 from scipy.stats import norm
 from scipy import ndimage as ndi
-from scipy import optimize
+from scipy import optimize as opt
 from matplotlib import pyplot as plt
 import ipdb
 
@@ -142,7 +142,7 @@ def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=0.2):
         J_alpha = 2*( u(0)*(C-S*Sbgr[0]) + u(1)*(C-S*Sbgr[1]) + u(2)*(C-S*Sbgr[2]) )
         J_c = (2*(u(0)+u(1)+u(2)) * 3*Alpha)
         J_s = ( (2*(1-Alpha)*(u(0)*Sbgr[0]+u(1)*Sbgr[1]+u(2)*Sbgr[2])) + 2*lambda_*(S-1) )
-        ipdb.set_trace()
+        # ipdb.set_trace()
         return np.array( (J_alpha, J_c, J_s) )
 
     def J(x):
@@ -150,6 +150,7 @@ def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=0.2):
         # global it
         # it=it+1
         # print 'iter: ', it
+        # x = x.reshape([3,-1])
         return (
             (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[0] - only_sky_pixels[...,0])**2
             + (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[1] - only_sky_pixels[...,1])**2
@@ -163,9 +164,33 @@ def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=0.2):
         # if ( sky_pixels[...,0]!=0 ):
     # n_sky_pixels = (sky_pixels[...,0]!=0).sum()
 
-    X = [np.zeros( only_sky_pixels.shape[0] ) for i in range(3)]
-    print optimize.check_grad(J, J_prime, X)
+    X = np.array( [0.10*np.ones( only_sky_pixels.shape[0] ), 200*np.ones( only_sky_pixels.shape[0] ), 1.05*np.ones( only_sky_pixels.shape[0] )] )
+    eps = 1e-3
     # ipdb.set_trace()
+    # Eps = np.array([ eps*np.ones(only_sky_pixels.shape[0]) for idx in range(3)])
+    # print opt.approx_fprime( X, J, eps )
+    # print J(X)
+    # ipdb.set_trace()
+    # dJ=(J(X[i]+Eps) - J(X[i]))/Eps
+    # print dJ
+    # print opt.check_grad(J, J_prime, X)
+    maxiter = 10000;
+    alpha = 0.2*1e-5
+    i=0
+    while (i<maxiter):
+        i=i+1
+        grad = alpha*J_prime(X)
+        projected_grad = grad
+        projected_grad[0][(X-grad)[0] <=0]=0
+        # projected_grad[0][(X-grad)[0] <=0]=0
+        X -= projected_grad
+        if not (i % 100):
+            print 'iter:', i, J(X)/1e5
+        if not (i%1000):
+            print X
+        if i == maxiter-1:
+            ipdb.set_trace()
+    # # ipdb.set_trace()
     # print optimize.fmin_bfgs(J,X, fprime=J_prime)
     # optimize.brute(J, X)
     # numpy.mmap()
