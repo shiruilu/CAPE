@@ -33,7 +33,8 @@ BM_DIR = './benchmarks/'
 def in_idea_blue_rg(I_origin):
     img = I_origin.astype(float)
     IDEAL_SKY_BGR = (225, 190, 170)
-    RANGE = (25, 30, 50)
+    # RANGE = (25, 30, 50)
+    RANGE = (35, 35, 55)
     return (abs(img[...,0]-IDEAL_SKY_BGR[0]) < RANGE[0]) \
         & (abs(img[...,1]-IDEAL_SKY_BGR[1]) < RANGE[1]) \
         & (abs(img[...,2]-IDEAL_SKY_BGR[2]) < RANGE[2])
@@ -74,8 +75,8 @@ def get_sky_ref_patch(f_gray_one_third):
     pos = np.array(lenpos).argmax() # pos of largest sky ref patch
     print 'max patch amount, patch: ', lenpos[pos], val[pos]
     mean = np.mean(val[pos])
-    variance = np.var(val[pos])
-    return mean, variance
+    std = np.std(val[pos])
+    return mean, std
 
 def _get_top_one_third(img):
     return img[0:img.shape[0]*1.0/3,...]
@@ -83,6 +84,16 @@ def _get_top_one_third(img):
 
 def sky_prob_to_01(sky_prob_map, thresh=0.0):
     return sky_prob_map>thresh
+
+def _2to3(A):
+    """
+    dimension increase [1,2] to [[1,1,1], [2,2,2]]
+    extend A=arraytype(m,n) to (m,n,3), copy values
+    m=1 in this func (sky_enhance)
+    """
+    res = np.empty([A.shape[0], A.shape[1], 3])
+    res[:,:,0] = A; res[:,:,1] = A; res[:,:,2] = A
+    return res
 
 def sky_ref_patch_detection(I_origin):
     """
@@ -113,15 +124,20 @@ def sky_ref_patch_detection(I_origin):
 
     S = []
     if ( np.sum( _get_top_one_third(sky_prob_map) ) !=0): # top 1/3 has sky
+        sky_prob_map_bgr = _2to3(sky_prob_map)
         for i in range(3): #B, G, R
             masked_I_one_thrid = cape_util.mask_skin( # mask non-blue area 0, copy the rest
                 _get_top_one_third(I_origin)[...,i]
                 , _get_top_one_third(sky_prob_map)!=0.0 # sky_prob map changed after previous step
             )
-            mean, var = get_sky_ref_patch( masked_I_one_thrid )
+            mean, std = get_sky_ref_patch( masked_I_one_thrid )
             S.append(mean)
-            _rv_sky_patch = norm(loc=mean, scale=var)
+            _rv_sky_patch = norm(loc=mean, scale=std)
+            sky_prob_map_bgr[...,i][sky_prob_map>0.0] = _rv_sky_patch.pdf(I_origin[...,i])[sky_prob_map>0.0]/_rv_sky_patch.pdf(mean) # re-assign (where sky prob>0), normalize to p(median) = 1.0
+        sky_prob_map = 1.0/3*(sky_prob_map_bgr[...,0] + sky_prob_map_bgr[...,1] + sky_prob_map_bgr[...,2])
 
+    # ipdb.set_trace()
+    plt.imshow(sky_prob_map); plt.show() # rainbow map
     print 'S(b,g,r): ',S
     return S, sky_prob_map
 
@@ -183,38 +199,19 @@ def sky_enhance(X, P, Sbgr):
     NOTE: computing some color-like array (e.g. beta_old) will actually exceed 255,
           use 'float' instead of 'uint8'
     """
-    def _mul(a, b):
-        """
-        produce mul res for things like 's*(Sb, Sg, Sr)'
-        """
-        # assert a.dtype == b.dtype
-        res = np.empty( (b.shape[0], b.shape[1], 3) )
-        res[...,0] = a[...,0]*b
-        res[...,1] = a[...,1]*b
-        res[...,2]  =a[...,2]*b
-        return res
-
-    def _2to3(A):
-        """
-        dimension increase [1,2] to [[1,1,1], [2,2,2]]
-        extend A=arraytype(m,n) to (m,n,3), copy values
-        m=1 in this func (sky_enhance)
-        """
-        res = np.empty([A.shape[0], A.shape[1], 3])
-        res[:,:,0] = A; res[:,:,1] = A; res[:,:,2] = A
-        return res
-
-    # _h,_w = P.shape # original image shape
-    # ipdb.set_trace()
+    ipdb.set_trace()
     Alpha = X[0]; C = X[1]; S=X[2]
-    f_sky_bgr = np.array([[[254,170,112]]], dtype='uint8')
-    f_sky = cv2.cvtColor(f_sky_bgr, cv2.COLOR_BGR2LAB)
-    beta_old = _2to3(S) * cv2.cvtColor(Sbgr, cv2.COLOR_BGR2LAB)
+    f_sky_bgr = np.array([[[254,190,160]]], dtype='uint8')
+    f_sky = cv2.cvtColor(f_sky_bgr, cv2.COLOR_BGR2LAB) # preferred color, in CIELab
+    Slab = cv2.cvtColor(Sbgr, cv2.COLOR_BGR2LAB)
+    f_lab = 1.0*f_sky / Slab # (f_l, f_a, f_b), correction ratio
+    print 'f_lab: ', f_lab
+    beta_old = _2to3(S) * Slab
     kai_old = _2to3(C)
     W = np.array([[[100, 0, 0]]])
 
     P_3 = _2to3(P)
-    beta_new = P_3*(f_sky*beta_old) + (1-P_3)*beta_old
+    beta_new = P_3*(f_lab*beta_old) + (1-P_3)*beta_old
     kai_new = P_3*(W+kai_old)/2.0 + (1-P_3)*kai_old
     res = _2to3(1-Alpha)*cv2.cvtColor(beta_new.astype('uint8'), cv2.COLOR_LAB2BGR) + _2to3(Alpha)*cv2.cvtColor(kai_new.astype('uint8'), cv2.COLOR_LAB2BGR)
     res = res.astype('uint8')
