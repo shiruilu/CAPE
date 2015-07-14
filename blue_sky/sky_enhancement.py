@@ -67,11 +67,9 @@ def get_sky_ref_patch(f_gray_one_third):
     # ipdb.set_trace()
     _res = ndi.labeled_comprehension(f_gray_one_third, lbl, lbls, _var_lenpos, object, 0, True)
     val = []; lenpos = [];
-    # ipdb.set_trace()
+
     for idx, (_val, _lenpos) in np.ndenumerate(_res):
         val.append(_val); lenpos.append(_lenpos)
-    # for idx, v in np.ndenumerate(_res):
-        # val.append(v[0]); lenpos.append(v[1])
 
     pos = np.array(lenpos).argmax() # pos of largest sky ref patch
     print 'max patch amount, patch: ', lenpos[pos], val[pos]
@@ -82,34 +80,39 @@ def get_sky_ref_patch(f_gray_one_third):
 def _get_top_one_third(img):
     return img[0:img.shape[0]*1.0/3,...]
 
+
+def sky_prob_to_01(sky_prob_map, thresh=0.0):
+    return sky_prob_map>thresh
+
 def sky_ref_patch_detection(I_origin):
-    # blue sky color range:
-    # http://colors.findthedata.com/q/402/10857/What-are-the-RGB-values-of-Sky-Blue
+    """
+    RETURN:
+    S: list:[Sb, Sg, Sr]
+    sky_prob_map
+    """
     I_gray = cv2.cvtColor(I_origin, cv2.COLOR_BGR2GRAY)
     sky_prob_map = np.zeros(I_gray.shape)
-    # ipdb.set_trace()
     sky_prob_map[ in_idea_blue_rg(I_origin) ] = 1.0
-    # https://www.hdm-stuttgart.de/~maucher/Python/ComputerVision/html/Filtering.html
+
     _grad_x = np.absolute( ndi.prewitt(I_gray, axis=1 ,mode='nearest') )
     _grad_y = np.absolute( ndi.prewitt(I_gray, axis=0 ,mode='nearest') )
     _rv = norm(loc=0., scale=255./3.) # 3*sigma = 255, rv ~ random variable
-    # ipdb.set_trace()
+
     _grad_percent = 0.10 # 0.05 of the original paper
     sky_prob_map[ (sky_prob_map ==1.0) &
                   ((_grad_x >_grad_percent*255.) | (_grad_y >_grad_percent*255.)) ] \
         = _rv.pdf( (_grad_x + _grad_y)/2.0 )[ (sky_prob_map ==1.0) &
-                  ((_grad_x >_grad_percent*255.) | (_grad_y >_grad_percent*255.)) ] # average of gradx, y
-    # _mask = np.ones(sky_prob_map.shape, dtype=bool)
-    # _mask[sky_prob_map==0.0] = False
+                                              ((_grad_x >_grad_percent*255.) | (_grad_y >_grad_percent*255.)) ] # average of gradx, y
+
+
     _L = cv2.cvtColor(I_origin, cv2.COLOR_BGR2LAB)[...,0]
     detect_res = cape_util.detect_bimodal( [get_smoothed_hist( cape_util.mask_skin(_L, sky_prob_map!=0.0) )] )[0] # detect_bimodal is an array f
     if (detect_res[0] == True): #could return F or None, must be ==True
-        print 'bimodal detected'
+        print 'bimodal detected in current sky_ref_patch'
         sky_prob_map[ I_gray ==detect_res[1] ] = 0.0 #exclude pixels correspond to the dark mode
 
     S = []
     if ( np.sum( _get_top_one_third(sky_prob_map) ) !=0): # top 1/3 has sky
-        # ipdb.set_trace()
         for i in range(3): #B, G, R
             masked_I_one_thrid = cape_util.mask_skin( # mask non-blue area 0, copy the rest
                 _get_top_one_third(I_origin)[...,i]
@@ -117,23 +120,14 @@ def sky_ref_patch_detection(I_origin):
             )
             mean, var = get_sky_ref_patch( masked_I_one_thrid )
             S.append(mean)
-        _rv_sky_patch = norm(loc=mean, scale=var)
-    # ipdb.set_trace()
+            _rv_sky_patch = norm(loc=mean, scale=var)
+
     print 'S(b,g,r): ',S
     return S, sky_prob_map
 
-it = 0
 def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=0.2):
-    # def R(S):
-        # return ((S-1) **2)[sky_pixels!=0]
-    # idx = []; only_sky_pixels = [];
-    # for _idx, _bgr in np.ndenumerate(sky_prob_map):
-        # if (sky_prob_map[_idx] ==1.0):
-            # idx.append(_idx); only_sky_pixels.append(_bgr)
 
-    # ipdb.set_trace()
-    # idx = np.array(idx); only_sky_pixels = np.array(only_sky_pixels)
-    only_sky_pixels = sky_pixels[sky_pixels[...,0]>0]
+    only_sky_pixels = sky_pixels[ sky_prob_to_01(sky_pixels[...,0]) ]
 
     def J_prime(x):
         Alpha = x[0]; C = x[1]; S=x[2]
@@ -142,15 +136,10 @@ def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=0.2):
         J_alpha = 2*( u(0)*(C-S*Sbgr[0]) + u(1)*(C-S*Sbgr[1]) + u(2)*(C-S*Sbgr[2]) )
         J_c = (2*(u(0)+u(1)+u(2)) * 3*Alpha)
         J_s = ( (2*(1-Alpha)*(u(0)*Sbgr[0]+u(1)*Sbgr[1]+u(2)*Sbgr[2])) + 2*lambda_*(S-1) )
-        # ipdb.set_trace()
+
         return np.array( (J_alpha, J_c, J_s) )
 
     def J(x):
-        # Alpha = x[0]; C = x[1]; S = x[2]
-        # global it
-        # it=it+1
-        # print 'iter: ', it
-        # x = x.reshape([3,-1])
         return (
             (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[0] - only_sky_pixels[...,0])**2
             + (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[1] - only_sky_pixels[...,1])**2
@@ -158,49 +147,91 @@ def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=0.2):
             + lambda_ * (x[2]-1.)**2
         ).sum()
 
-    # def f(x):
-        # J(x[0], x[1], x[2])
-    # for idx in range( ):
-        # if ( sky_pixels[...,0]!=0 ):
-    # n_sky_pixels = (sky_pixels[...,0]!=0).sum()
-
-    X = np.array( [0.10*np.ones( only_sky_pixels.shape[0] ), 200*np.ones( only_sky_pixels.shape[0] ), 1.05*np.ones( only_sky_pixels.shape[0] )] )
-    eps = 1e-3
-    # ipdb.set_trace()
-    # Eps = np.array([ eps*np.ones(only_sky_pixels.shape[0]) for idx in range(3)])
-    # print opt.approx_fprime( X, J, eps )
-    # print J(X)
-    # ipdb.set_trace()
-    # dJ=(J(X[i]+Eps) - J(X[i]))/Eps
-    # print dJ
-    # print opt.check_grad(J, J_prime, X)
-    maxiter = 10000;
+    X = np.array( [0.15*np.ones( [1, only_sky_pixels.shape[0]] ),
+                   210 *np.ones( [1, only_sky_pixels.shape[0]] ),
+                   1.05*np.ones( [1, only_sky_pixels.shape[0]] )] )
+    # projected gradient descent
+    maxiter = 1000;
     alpha = 0.2*1e-5
     i=0
     while (i<maxiter):
         i=i+1
         grad = alpha*J_prime(X)
         projected_grad = grad
+        # 0<=Alpha<=1
         projected_grad[0][(X-grad)[0] <=0]=0
+        projected_grad[0][(X-grad)[0] >=1]=0
         # projected_grad[0][(X-grad)[0] <=0]=0
         X -= projected_grad
-        if not (i % 100):
-            print 'iter:', i, J(X)/1e5
-        if not (i%1000):
-            print X
-        if i == maxiter-1:
-            ipdb.set_trace()
-    # # ipdb.set_trace()
-    # print optimize.fmin_bfgs(J,X, fprime=J_prime)
-    # optimize.brute(J, X)
-    # numpy.mmap()
-    return
+        # if not (i % 100):
+        # print 'iter:', i, J(X)/1e5
+        # if not (i%1000):
+            # print X
+            # if i == maxiter-1:
+            # ipdb.set_trace()
+
+    return X
+
+def sky_enhance(X, P, Sbgr):
+    """
+    ARGs:
+    -----
+    X: Alpha = x[0]; C = x[1]; S=x[2]
+    P: sky_porb_map
+    Sbgr: np.array([[[Sb, Sg, Sr]]])
+
+    NOTE: computing some color-like array (e.g. beta_old) will actually exceed 255,
+          use 'float' instead of 'uint8'
+    """
+    def _mul(a, b):
+        """
+        produce mul res for things like 's*(Sb, Sg, Sr)'
+        """
+        # assert a.dtype == b.dtype
+        res = np.empty( (b.shape[0], b.shape[1], 3) )
+        res[...,0] = a[...,0]*b
+        res[...,1] = a[...,1]*b
+        res[...,2]  =a[...,2]*b
+        return res
+
+    def _2to3(A):
+        """
+        dimension increase [1,2] to [[1,1,1], [2,2,2]]
+        extend A=arraytype(m,n) to (m,n,3), copy values
+        m=1 in this func (sky_enhance)
+        """
+        res = np.empty([A.shape[0], A.shape[1], 3])
+        res[:,:,0] = A; res[:,:,1] = A; res[:,:,2] = A
+        return res
+
+    # _h,_w = P.shape # original image shape
+    # ipdb.set_trace()
+    Alpha = X[0]; C = X[1]; S=X[2]
+    f_sky_bgr = np.array([[[254,170,112]]], dtype='uint8')
+    f_sky = cv2.cvtColor(f_sky_bgr, cv2.COLOR_BGR2LAB)
+    beta_old = _2to3(S) * cv2.cvtColor(Sbgr, cv2.COLOR_BGR2LAB)
+    kai_old = _2to3(C)
+    W = np.array([[[100, 0, 0]]])
+
+    P_3 = _2to3(P)
+    beta_new = P_3*(f_sky*beta_old) + (1-P_3)*beta_old
+    kai_new = P_3*(W+kai_old)/2.0 + (1-P_3)*kai_old
+    res = _2to3(1-Alpha)*cv2.cvtColor(beta_new.astype('uint8'), cv2.COLOR_LAB2BGR) + _2to3(Alpha)*cv2.cvtColor(kai_new.astype('uint8'), cv2.COLOR_LAB2BGR)
+    res = res.astype('uint8')
+    return cv2.cvtColor(res, cv2.COLOR_LAB2BGR)
 
 def main():
     I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
     S, sky_prob_map = sky_ref_patch_detection(I_origin)
     #!! sky_prob_map should have 0~1 values, treat as 0?1?
-    sky_cloud_decompose(S, sky_prob_map, cape_util.mask_skin(I_origin, sky_prob_map.astype(bool)))
+    # ipdb.set_trace()
+    X = sky_cloud_decompose(S, sky_prob_map, cape_util.mask_skin(I_origin, sky_prob_map.astype(bool)))
+    Sbgr = np.array([[S]], dtype='uint8')
+    P = sky_prob_map[sky_prob_to_01(sky_prob_map, thresh=0.0)].reshape(1,-1) # return sky_prob regarded as sky
+    res = sky_enhance( X, P, Sbgr )
+    res_disp = I_origin.copy();
+    res_disp[sky_prob_to_01(sky_prob_map, thresh=0.0)] = res[0] # res.shape is (1, num_sky_pixels, 3)
+    cape_util.display(np.hstack([I_origin, res_disp]))
     return 0
 
 if __name__ == '__main__':

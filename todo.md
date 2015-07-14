@@ -15,3 +15,10 @@ course:
 
 ## June 22, 2015
 Current face_detect use skin_detect to judge skin area sufficiency, while main function will do face_detect and skin_detect in a row, consider remove one of them.
+
+## July 12, 2015
+Try:
+1. erosion/dilation to remove hole in detected faces
+2. finding convex hull of it
+
+Modify softmax or sigmoid (or log?) to produce a 0-1 barrier for 0<Alpha<1.
