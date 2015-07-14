@@ -175,17 +175,19 @@ def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=0.2):
         grad = alpha*J_prime(X)
         projected_grad = grad
         # 0<=Alpha<=1
-        projected_grad[0][(X-grad)[0] <=0]=0
-        projected_grad[0][(X-grad)[0] >=1]=0
         # projected_grad[0][(X-grad)[0] <=0]=0
+        # projected_grad[0][(X-grad)[0] >=1]=0
         X -= projected_grad
-        # if not (i % 100):
-        # print 'iter:', i, J(X)/1e5
+        # other way of
+        
+        if not (i % 100):
+            print 'iter:', i, J(X)/1e5
         # if not (i%1000):
             # print X
             # if i == maxiter-1:
             # ipdb.set_trace()
-
+    # X[0][(X)[0] >=1]=1.
+    # X[0][(X)[0] <=0]=0.
     return X
 
 def sky_enhance(X, P, Sbgr):
@@ -199,20 +201,22 @@ def sky_enhance(X, P, Sbgr):
     NOTE: computing some color-like array (e.g. beta_old) will actually exceed 255,
           use 'float' instead of 'uint8'
     """
-    ipdb.set_trace()
     Alpha = X[0]; C = X[1]; S=X[2]
-    f_sky_bgr = np.array([[[254,190,160]]], dtype='uint8')
+    f_sky_bgr = np.array([[[250,190,160]]], dtype='uint8')
     f_sky = cv2.cvtColor(f_sky_bgr, cv2.COLOR_BGR2LAB) # preferred color, in CIELab
     Slab = cv2.cvtColor(Sbgr, cv2.COLOR_BGR2LAB)
     f_lab = 1.0*f_sky / Slab # (f_l, f_a, f_b), correction ratio
     print 'f_lab: ', f_lab
-    beta_old = _2to3(S) * Slab
-    kai_old = _2to3(C)
+    beta_old = cv2.cvtColor( (_2to3(S) * Sbgr).astype('uint8'), cv2.COLOR_BGR2LAB )
+    kai_old = cv2.cvtColor( _2to3(C).astype('uint8'), cv2.COLOR_BGR2LAB )
     W = np.array([[[100, 0, 0]]])
 
+    # ipdb.set_trace()
     P_3 = _2to3(P)
     beta_new = P_3*(f_lab*beta_old) + (1-P_3)*beta_old
+    # beta_new = beta_old
     kai_new = P_3*(W+kai_old)/2.0 + (1-P_3)*kai_old
+    # kai_new = kai_old
     res = _2to3(1-Alpha)*cv2.cvtColor(beta_new.astype('uint8'), cv2.COLOR_LAB2BGR) + _2to3(Alpha)*cv2.cvtColor(kai_new.astype('uint8'), cv2.COLOR_LAB2BGR)
     res = res.astype('uint8')
     return cv2.cvtColor(res, cv2.COLOR_LAB2BGR)
