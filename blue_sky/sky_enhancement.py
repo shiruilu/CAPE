@@ -27,6 +27,10 @@ from scipy import optimize as opt
 from matplotlib import pyplot as plt
 import ipdb
 
+# tricky way of removing ipdb breakpoints
+def f(): pass
+ipdb.set_trace = f
+
 IMG_DIR = '../resources/images/'
 BM_DIR = './benchmarks/'
 
@@ -63,6 +67,11 @@ def _var_lenpos(val, pos):
     return val, len(pos)
 
 def get_sky_ref_patch(f_gray_one_third):
+    """
+    Return mean and std of the *largest* sky patch detected on the input image
+    +TODO: clear patches other than the largest (set sky_prob to 0)
+
+    """
     lbl, nlbl = ndi.label(f_gray_one_third)
     lbls = np.arange(1, nlbl+1)
     # ipdb.set_trace()
@@ -81,9 +90,8 @@ def get_sky_ref_patch(f_gray_one_third):
 def _get_top_one_third(img):
     return img[0:img.shape[0]*1.0/3,...]
 
-
 def sky_prob_to_01(sky_prob_map, thresh=0.0):
-    return sky_prob_map>thresh
+    return sky_prob_map > thresh
 
 def _2to3(A):
     """
@@ -103,25 +111,29 @@ def sky_ref_patch_detection(I_origin):
     """
     I_gray = cv2.cvtColor(I_origin, cv2.COLOR_BGR2GRAY)
     sky_prob_map = np.zeros(I_gray.shape)
+    # initialize sky prob map with pixels strictly within ideal blue range
     sky_prob_map[ in_idea_blue_rg(I_origin) ] = 1.0
 
+    # exponentially decrease sky prob where gradient is too large (>_grad_percent*255.)
     _grad_x = np.absolute( ndi.prewitt(I_gray, axis=1 ,mode='nearest') )
     _grad_y = np.absolute( ndi.prewitt(I_gray, axis=0 ,mode='nearest') )
     _rv = norm(loc=0., scale=255./3.) # 3*sigma = 255, rv ~ random variable
 
     _grad_percent = 0.10 # 0.05 of the original paper
-    sky_prob_map[ (sky_prob_map ==1.0) &
-                  ((_grad_x >_grad_percent*255.) | (_grad_y >_grad_percent*255.)) ] \
-        = _rv.pdf( (_grad_x + _grad_y)/2.0 )[ (sky_prob_map ==1.0) &
-                                              ((_grad_x >_grad_percent*255.) | (_grad_y >_grad_percent*255.)) ] # average of gradx, y
+    cond_mod_sky_prob = (sky_prob_map ==1.0) & \
+                        ((_grad_x >_grad_percent*255.) | (_grad_y >_grad_percent*255.)) # average of gradx, y
+    sky_prob_map[ cond_mod_sky_prob ] = _rv.pdf( (_grad_x + _grad_y)/2.0 )[ cond_mod_sky_prob ]
 
-
+    # detect bimodal
     _L = cv2.cvtColor(I_origin, cv2.COLOR_BGR2LAB)[...,0]
-    detect_res = cape_util.detect_bimodal( [get_smoothed_hist( cape_util.mask_skin(_L, sky_prob_map!=0.0) )] )[0] # detect_bimodal is an array f
+    detect_res = cape_util.detect_bimodal(
+        [get_smoothed_hist( cape_util.mask_skin(_L, sky_prob_map!=0.0) )]
+    )[0] # detect_bimodal is an array f
     if (detect_res[0] == True): #could return F or None, must be ==True
         print 'bimodal detected in current sky_ref_patch'
         sky_prob_map[ I_gray ==detect_res[1] ] = 0.0 #exclude pixels correspond to the dark mode
 
+    # get mean and std from each b,g,r channel of detected sky
     S = []
     if ( np.sum( _get_top_one_third(sky_prob_map) ) !=0): # top 1/3 has sky
         sky_prob_map_bgr = _2to3(sky_prob_map)
@@ -133,15 +145,18 @@ def sky_ref_patch_detection(I_origin):
             mean, std = get_sky_ref_patch( masked_I_one_thrid )
             S.append(mean)
             _rv_sky_patch = norm(loc=mean, scale=std)
-            sky_prob_map_bgr[...,i][sky_prob_map>0.0] = _rv_sky_patch.pdf(I_origin[...,i])[sky_prob_map>0.0]/_rv_sky_patch.pdf(mean) # re-assign (where sky prob>0), normalize to p(median) = 1.0
-        sky_prob_map = 1.0/3*(sky_prob_map_bgr[...,0] + sky_prob_map_bgr[...,1] + sky_prob_map_bgr[...,2])
+            # re-assign (where sky prob>0), normalize to p(median) = 1.0
+            sky_prob_map_bgr[...,i][sky_prob_map>0.0] = \
+                _rv_sky_patch.pdf(I_origin[...,i])[sky_prob_map>0.0] / _rv_sky_patch.pdf(mean)
+        _b=1.; _g=3.; _r=3.
+        sky_prob_map = (_b*sky_prob_map_bgr[...,0] + _g*sky_prob_map_bgr[...,1] + _r*sky_prob_map_bgr[...,2]) / (_b+_g+_r)
 
     # ipdb.set_trace()
     plt.imshow(sky_prob_map); plt.show() # rainbow map
     print 'S(b,g,r): ',S
     return S, sky_prob_map
 
-def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=0.2):
+def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=1.0):
 
     only_sky_pixels = sky_pixels[ sky_prob_to_01(sky_pixels[...,0]) ]
 
@@ -157,7 +172,7 @@ def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=0.2):
 
     def J(x):
         return (
-            (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[0] - only_sky_pixels[...,0])**2
+            ( x[0]*x[1] + (1-x[0])*x[2]*Sbgr[0] - only_sky_pixels[...,0])**2
             + (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[1] - only_sky_pixels[...,1])**2
             + (x[0]*x[1] + (1-x[0])*x[2]*Sbgr[2] - only_sky_pixels[...,2])**2
             + lambda_ * (x[2]-1.)**2
@@ -167,27 +182,37 @@ def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=0.2):
                    210 *np.ones( [1, only_sky_pixels.shape[0]] ),
                    1.05*np.ones( [1, only_sky_pixels.shape[0]] )] )
     # projected gradient descent
+    # ipdb.set_trace()
     maxiter = 1000;
     alpha = 0.2*1e-5
+    # alpha = 0.5*1e-6
     i=0
     while (i<maxiter):
         i=i+1
         grad = alpha*J_prime(X)
         projected_grad = grad
-        # 0<=Alpha<=1
-        # projected_grad[0][(X-grad)[0] <=0]=0
-        # projected_grad[0][(X-grad)[0] >=1]=0
+        # 0<=Alpha<=1, method 1
+        projected_grad[0][(X-grad)[0] <=0]=0
+        projected_grad[0][(X-grad)[0] >=1]=0
         X -= projected_grad
-        # other way of
-        
+        # projected grad method 2
+        # X[0][(X)[0] >=1]=1.
+        # X[0][(X)[0] <=0]=0.
+
         if not (i % 100):
             print 'iter:', i, J(X)/1e5
         # if not (i%1000):
             # print X
             # if i == maxiter-1:
             # ipdb.set_trace()
+    #project grad method 3
     # X[0][(X)[0] >=1]=1.
     # X[0][(X)[0] <=0]=0.
+    ipdb.set_trace()
+    # visualize Alpha
+    _sky_cloud_prob = sky_prob_to_01(sky_prob_map, thresh=0.0).astype('float64') # black & white
+    _sky_cloud_prob[ sky_prob_to_01(sky_prob_map, thresh=0.0) ] = X[0][0]
+    plt.imshow( np.hstack([sky_prob_map, _sky_cloud_prob] ), cmap=plt.cm.rainbow); plt.show()
     return X
 
 def sky_enhance(X, P, Sbgr):
@@ -196,36 +221,39 @@ def sky_enhance(X, P, Sbgr):
     -----
     X: Alpha = x[0]; C = x[1]; S=x[2]
     P: sky_porb_map
-    Sbgr: np.array([[[Sb, Sg, Sr]]])
+    Sbgr: np.array([[[Sb, Sg, Sr]]]), mean of the sky color in current image
 
     NOTE: computing some color-like array (e.g. beta_old) will actually exceed 255,
           use 'float' instead of 'uint8'
     """
     Alpha = X[0]; C = X[1]; S=X[2]
+
     f_sky_bgr = np.array([[[250,190,160]]], dtype='uint8')
     f_sky = cv2.cvtColor(f_sky_bgr, cv2.COLOR_BGR2LAB) # preferred color, in CIELab
     Slab = cv2.cvtColor(Sbgr, cv2.COLOR_BGR2LAB)
     f_lab = 1.0*f_sky / Slab # (f_l, f_a, f_b), correction ratio
     print 'f_lab: ', f_lab
+    # ipdb.set_trace()
     beta_old = cv2.cvtColor( (_2to3(S) * Sbgr).astype('uint8'), cv2.COLOR_BGR2LAB )
     kai_old = cv2.cvtColor( _2to3(C).astype('uint8'), cv2.COLOR_BGR2LAB )
     W = np.array([[[100, 0, 0]]])
 
-    # ipdb.set_trace()
     P_3 = _2to3(P)
     beta_new = P_3*(f_lab*beta_old) + (1-P_3)*beta_old
     # beta_new = beta_old
     kai_new = P_3*(W+kai_old)/2.0 + (1-P_3)*kai_old
     # kai_new = kai_old
-    res = _2to3(1-Alpha)*cv2.cvtColor(beta_new.astype('uint8'), cv2.COLOR_LAB2BGR) + _2to3(Alpha)*cv2.cvtColor(kai_new.astype('uint8'), cv2.COLOR_LAB2BGR)
+    res = _2to3(1-Alpha)*cv2.cvtColor(beta_new.astype('uint8'), cv2.COLOR_LAB2BGR) \
+          + _2to3(Alpha)*cv2.cvtColor(kai_new.astype('uint8'), cv2.COLOR_LAB2BGR)
     res = res.astype('uint8')
-    return cv2.cvtColor(res, cv2.COLOR_LAB2BGR)
+    return res
 
 def main():
     I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
+    # ipdb.set_trace()
     S, sky_prob_map = sky_ref_patch_detection(I_origin)
     #!! sky_prob_map should have 0~1 values, treat as 0?1?
-    # ipdb.set_trace()
+
     X = sky_cloud_decompose(S, sky_prob_map, cape_util.mask_skin(I_origin, sky_prob_map.astype(bool)))
     Sbgr = np.array([[S]], dtype='uint8')
     P = sky_prob_map[sky_prob_to_01(sky_prob_map, thresh=0.0)].reshape(1,-1) # return sky_prob regarded as sky
