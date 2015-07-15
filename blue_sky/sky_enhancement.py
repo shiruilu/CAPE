@@ -148,7 +148,7 @@ def sky_ref_patch_detection(I_origin):
             # re-assign (where sky prob>0), normalize to p(median) = 1.0
             sky_prob_map_bgr[...,i][sky_prob_map>0.0] = \
                 _rv_sky_patch.pdf(I_origin[...,i])[sky_prob_map>0.0] / _rv_sky_patch.pdf(mean)
-        _b=1.; _g=3.; _r=3.
+        _b=1.; _g=5.; _r=3.
         sky_prob_map = (_b*sky_prob_map_bgr[...,0] + _g*sky_prob_map_bgr[...,1] + _r*sky_prob_map_bgr[...,2]) / (_b+_g+_r)
 
     # ipdb.set_trace()
@@ -183,7 +183,7 @@ def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=1.0):
                    1.05*np.ones( [1, only_sky_pixels.shape[0]] )] )
     # projected gradient descent
     # ipdb.set_trace()
-    maxiter = 1000;
+    maxiter = 100;
     alpha = 0.2*1e-5
     # alpha = 0.5*1e-6
     i=0
@@ -208,14 +208,15 @@ def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=1.0):
     #project grad method 3
     # X[0][(X)[0] >=1]=1.
     # X[0][(X)[0] <=0]=0.
-    ipdb.set_trace()
+    # ipdb.set_trace()
     # visualize Alpha
     _sky_cloud_prob = sky_prob_to_01(sky_prob_map, thresh=0.0).astype('float64') # black & white
     _sky_cloud_prob[ sky_prob_to_01(sky_prob_map, thresh=0.0) ] = X[0][0]
     plt.imshow( np.hstack([sky_prob_map, _sky_cloud_prob] ), cmap=plt.cm.rainbow); plt.show()
     return X
 
-def sky_enhance(X, P, Sbgr):
+def sky_enhance(X, P, Sbgr
+                ,I_origin, sky_prob_map):
     """
     ARGs:
     -----
@@ -233,19 +234,27 @@ def sky_enhance(X, P, Sbgr):
     Slab = cv2.cvtColor(Sbgr, cv2.COLOR_BGR2LAB)
     f_lab = 1.0*f_sky / Slab # (f_l, f_a, f_b), correction ratio
     print 'f_lab: ', f_lab
-    # ipdb.set_trace()
-    beta_old = cv2.cvtColor( (_2to3(S) * Sbgr).astype('uint8'), cv2.COLOR_BGR2LAB )
-    kai_old = cv2.cvtColor( _2to3(C).astype('uint8'), cv2.COLOR_BGR2LAB )
+    ipdb.set_trace()
+    beta_old = cv2.cvtColor( cape_util.safe_convert(_2to3(S) * Sbgr, np.uint8), cv2.COLOR_BGR2LAB )
+    kai_old = cv2.cvtColor( cape_util.safe_convert(_2to3(C), np.uint8), cv2.COLOR_BGR2LAB )
     W = np.array([[[100, 0, 0]]])
 
     P_3 = _2to3(P)
-    beta_new = P_3*(f_lab*beta_old) + (1-P_3)*beta_old
+    beta_new = cv2.add(P_3*(f_lab*beta_old), (1-P_3)*beta_old)
     # beta_new = beta_old
-    kai_new = P_3*(W+kai_old)/2.0 + (1-P_3)*kai_old
+    kai_new = cv2.add(P_3*(W+kai_old)/2.0, (1-P_3)*kai_old)
     # kai_new = kai_old
-    res = _2to3(1-Alpha)*cv2.cvtColor(beta_new.astype('uint8'), cv2.COLOR_LAB2BGR) \
-          + _2to3(Alpha)*cv2.cvtColor(kai_new.astype('uint8'), cv2.COLOR_LAB2BGR)
-    res = res.astype('uint8')
+    _fst = _2to3(1-Alpha)*cv2.cvtColor(beta_new.astype('uint8'), cv2.COLOR_LAB2BGR)
+    _lst = _2to3(Alpha)*cv2.cvtColor(kai_new.astype('uint8'), cv2.COLOR_LAB2BGR)
+    res = cv2.add( _fst
+                   , _lst ) # use cv2.add() to avoid overflow e.g. 150+125=255, not 20
+    # res = res.astype('uint8')
+    # visualize _fst, _lst for debugging
+    _first = I_origin.copy(); _last = I_origin.copy()
+    _first[ sky_prob_to_01(sky_prob_map, thresh=0.0) ] = _fst[0]
+    _last[ sky_prob_to_01(sky_prob_map, thresh=0.0) ] = _lst[0]
+    cape_util.display( np.hstack([_first, _last] ) )
+
     return res
 
 def main():
@@ -257,7 +266,8 @@ def main():
     X = sky_cloud_decompose(S, sky_prob_map, cape_util.mask_skin(I_origin, sky_prob_map.astype(bool)))
     Sbgr = np.array([[S]], dtype='uint8')
     P = sky_prob_map[sky_prob_to_01(sky_prob_map, thresh=0.0)].reshape(1,-1) # return sky_prob regarded as sky
-    res = sky_enhance( X, P, Sbgr )
+    res = sky_enhance( X, P, Sbgr
+                       ,I_origin, sky_prob_map)
     res_disp = I_origin.copy();
     res_disp[sky_prob_to_01(sky_prob_map, thresh=0.0)] = res[0] # res.shape is (1, num_sky_pixels, 3)
     cape_util.display(np.hstack([I_origin, res_disp]))

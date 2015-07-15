@@ -10,6 +10,13 @@ import numpy as np
 from scipy.signal import argrelextrema
 import matplotlib.pyplot as plt
 
+def safe_convert(x, new_dtype):
+    """
+    http://stackoverflow.com/a/23325108/2729100
+    convert x to new_dtype, clip values larger than max or smaller than min
+    """
+    info = np.iinfo(new_dtype)
+    return x.clip(info.min, info.max).astype(new_dtype)
 
 def detect_bimodal(H):
     """
