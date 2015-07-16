@@ -237,12 +237,13 @@ def sky_enhance(X, P, Sbgr
     ipdb.set_trace()
     beta_old = cv2.cvtColor( cape_util.safe_convert(_2to3(S) * Sbgr, np.uint8), cv2.COLOR_BGR2LAB )
     kai_old = cv2.cvtColor( cape_util.safe_convert(_2to3(C), np.uint8), cv2.COLOR_BGR2LAB )
-    W = np.array([[[100, 0, 0]]])
+    # W = np.array([[[100, 0, 0]]])
+    W = np.array([[[255, 128, 128]]]) # (255,255,255) in RGB
 
     P_3 = _2to3(P)
     beta_new = cv2.add(P_3*(f_lab*beta_old), (1-P_3)*beta_old)
     # beta_new = beta_old
-    kai_new = cv2.add(P_3*(W+kai_old)/2.0, (1-P_3)*kai_old)
+    kai_new = cv2.add(P_3*((W+kai_old)/2.0), (1-P_3)*kai_old)
     # kai_new = kai_old
     _fst = _2to3(1-Alpha)*cv2.cvtColor(beta_new.astype('uint8'), cv2.COLOR_LAB2BGR)
     _lst = _2to3(Alpha)*cv2.cvtColor(kai_new.astype('uint8'), cv2.COLOR_LAB2BGR)
