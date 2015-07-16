@@ -14,22 +14,18 @@ for d in source_dirs:
     sys.path.insert( 0, os.path.join(os.getcwd(), '../'+d) )
 
 import cape_util
-import aindane
-import appendixa_skin_detect as apa_skin
-import wls_filter
-import docs_face_detector as vj_face
 
 import cv2
 import numpy as np
 from scipy.stats import norm
 from scipy import ndimage as ndi
-from scipy import optimize as opt
+# from scipy import optimize as opt
 from matplotlib import pyplot as plt
 import ipdb
 
-# tricky way of removing ipdb breakpoints
-def f(): pass
-ipdb.set_trace = f
+# # tricky way of removing ipdb breakpoints
+# def f(): pass
+# ipdb.set_trace = f
 
 IMG_DIR = '../resources/images/'
 BM_DIR = './benchmarks/'
@@ -234,7 +230,7 @@ def sky_enhance(X, P, Sbgr
     Slab = cv2.cvtColor(Sbgr, cv2.COLOR_BGR2LAB)
     f_lab = 1.0*f_sky / Slab # (f_l, f_a, f_b), correction ratio
     print 'f_lab: ', f_lab
-    ipdb.set_trace()
+    # ipdb.set_trace()
     beta_old = cv2.cvtColor( cape_util.safe_convert(_2to3(S) * Sbgr, np.uint8), cv2.COLOR_BGR2LAB )
     kai_old = cv2.cvtColor( cape_util.safe_convert(_2to3(C), np.uint8), cv2.COLOR_BGR2LAB )
     # W = np.array([[[100, 0, 0]]])
@@ -247,8 +243,7 @@ def sky_enhance(X, P, Sbgr
     # kai_new = kai_old
     _fst = _2to3(1-Alpha)*cv2.cvtColor(beta_new.astype('uint8'), cv2.COLOR_LAB2BGR)
     _lst = _2to3(Alpha)*cv2.cvtColor(kai_new.astype('uint8'), cv2.COLOR_LAB2BGR)
-    res = cv2.add( _fst
-                   , _lst ) # use cv2.add() to avoid overflow e.g. 150+125=255, not 20
+    res = cv2.add( _fst, _lst ) # use cv2.add() to avoid overflow e.g. 150+125=255, not 20
     # res = res.astype('uint8')
     # visualize _fst, _lst for debugging
     _first = I_origin.copy(); _last = I_origin.copy()
