@@ -21,7 +21,7 @@ def EACP(G, I, lambda_=1.0, alpha=1.0, eps=1e-4):
     """
     if G.shape != I.shape:
         raise ValueError('A and I are not in the same size')
-    L = np.log(I)
+    L = np.log(I+eps) # avoid log of 0
     g = G.flatten(1)
     s = L.shape
 
