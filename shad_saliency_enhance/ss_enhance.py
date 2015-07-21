@@ -106,7 +106,6 @@ def get_energy_map(I, skin_mask, _thresh=0.4):
     e_face = 1.0 *_thresh *skin_mask
     w_spacial = get_w_spacial(I_gray.shape)
 
-    # ipdb.set_trace()
     e_base = (e_grad + e_H + e_face) * w_spacial
     e_base = eacp.EACP(e_base, I[...,0])
     return e_base/e_base.max()
@@ -114,23 +113,26 @@ def get_energy_map(I, skin_mask, _thresh=0.4):
 def ss_enhace(energy_map, L, I_bgr):
     """
     ARGs:
-    energy_map: 
+    energy_map:
     L: opencv CIELab luminance channel (0-255)
     I_bgr: original image in BGR mode
     """
     # cape_util.display(energy_map)
     plt.imshow(energy_map, cmap='rainbow'); plt.show()
     # using reduce: http://stackoverflow.com/a/21817093/2729100
-    dark_mask = (L<50) & ( np.maximum.reduce(I_bgr[...,0], I_bgr[...,1], I_bgr[...,2])
-                             - np.minimum.reduce(I_bgr[...,0], I_bgr[...,1], I_bgr[...,2])>5 ) #exclude from dark whose max and min of BGR exceeds 5
+    #exclude from dark whose max and min of BGR exceeds 5
+    dark_mask = (L<50) & ( np.maximum.reduce([I_bgr[...,0], I_bgr[...,1], I_bgr[...,2]])
+                           - np.minimum.reduce([I_bgr[...,0], I_bgr[...,1], I_bgr[...,2]])>5 )
     Dark = L[dark_mask]
     Bright = L[~dark_mask]
-    Dark_Smoothed, _ = wls_filter.wlsfilter(Dark)
+    Dark_Smoothed = 255 * (wls_filter.wlsfilter(Dark.reshape([-1,1]))[0])
     f_sal = min( 2.0, 1.0*np.percentile(Bright, 35)/np.percentile(Dark_Smoothed, 95))
 
     B, Detail = wls_filter.wlsfilter(L)
+    B = B*255; Detail = Detail*255;
+    import ipdb; ipdb.set_trace()
     B_new = f_sal * energy_map*B + (1-energy_map)*B
-    return B+Detail
+    return B_new + Detail
 
 def get_skin_mask(I_lab, I_bgr):
     I_aindane = aindane.aindane(I_bgr)
