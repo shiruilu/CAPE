@@ -8,7 +8,8 @@ import os
 import sys
 
 source_dirs = ['cape_util', 'aindane', 'face_detection'
-               , 'skin_detection', 'wls_filter', 'face_skin']
+               , 'skin_detection', 'wls_filter', 'face_skin'
+               , 'pySaliencyMap']
 
 for d in source_dirs:
     sys.path.insert( 0, os.path.join(os.getcwd(), '../'+d) )
@@ -19,13 +20,12 @@ import appendixa_skin_detect as apa_skin
 import wls_filter
 import docs_face_detector as vj_face
 import eacp
+import pySaliencyMap
 
 from math import sqrt
 import cv2
 import numpy as np
-from scipy.stats import norm
 from scipy import ndimage as ndi
-from scipy import optimize as opt
 from matplotlib import pyplot as plt
 import ipdb
 
@@ -110,14 +110,13 @@ def get_energy_map(I, skin_mask, _thresh=0.4):
     e_base = eacp.EACP(e_base, I[...,0])
     return e_base/e_base.max()
 
-def ss_enhace(energy_map, L, I_bgr):
+def shad_saliency_enhace(energy_map, L, I_bgr):
     """
     ARGs:
     energy_map:
     L: opencv CIELab luminance channel (0-255)
     I_bgr: original image in BGR mode
     """
-    # cape_util.display(energy_map)
     plt.imshow(energy_map, cmap='rainbow'); plt.show()
     # using reduce: http://stackoverflow.com/a/21817093/2729100
     #exclude from dark whose max and min of BGR exceeds 5
@@ -129,16 +128,14 @@ def ss_enhace(energy_map, L, I_bgr):
     f_sal = min( 2.0, 1.0*np.percentile(Bright, 35)/np.percentile(Dark_Smoothed, 95))
 
     B, Detail = wls_filter.wlsfilter(L)
-    B = B*255; Detail = Detail*255;
-    import ipdb; ipdb.set_trace()
-    B_new = f_sal * energy_map*B + (1-energy_map)*B
-    return B_new + Detail
+    B = B*255; Detail = Detail*255
+    B_new = f_sal*energy_map*B + (1-energy_map)*B
+    return cape_util.safe_convert(B_new+Detail, np.uint8)
 
 def get_skin_mask(I_lab, I_bgr):
     I_aindane = aindane.aindane(I_bgr)
     # cape_util.display(np.hstack([I_bgr,I_aindane])) #debug
     faces_xywh = vj_face.face_detect(I_aindane)
-    # faces_xywh = vj_face.face_detect(I_bgr)
     faces = [ I_bgr[y:y+h, x:x+w] for (x,y,w,h) in faces_xywh ]
     # for fc in faces: # debug
         # cape_util.display(fc)
@@ -150,14 +147,43 @@ def get_skin_mask(I_lab, I_bgr):
 
     return skin_mask
 
-def _test():
-    I_bgr = cv2.imread(IMG_DIR+'ss_test_tower.png')
+def enhance_em(I, em, face_mask_thres=0.1):
+    """
+    (hack) some fix of the energy map
+    I: BGR mode
+    em: energy map 0-1
+    """
+    # I_aindane = aindane.aindane(I)
+    # mask = apa_skin.skin_detect(I_aindane)[1]
+    I_lab = cv2.cvtColor(I, cv2.COLOR_BGR2LAB)
+    mask = get_skin_mask(I_lab, I).astype('float') # face mask
+    mask *= face_mask_thres
+    plt.imshow(mask); plt.show()
+    I_gray = cv2.cvtColor(I, cv2.COLOR_BGR2GRAY)
+    w_spacial = get_w_spacial(I_gray.shape)
+    em_res = w_spacial * ((em+mask)/(em+mask).max())
+    em_res = eacp.EACP(em_res, I_lab[...,0])
+    return em_res
+
+def ss_enhance(I_bgr):
+    """
+    Keyword Arguments:
+    I_bgr -- uint8, (m,n,3), BGR
+    """
     I_lab = cv2.cvtColor(I_bgr, cv2.COLOR_BGR2LAB)
-    skin_mask = get_skin_mask(I_lab, I_bgr)
-    energy_map = get_energy_map(I_lab, skin_mask)
-    L_new = ss_enhace(energy_map, I_lab[...,0], I_bgr)
+    # skin_mask = get_skin_mask(I_lab, I_bgr)
+    # energy_map = get_energy_map(I_lab, skin_mask)
+    sm = pySaliencyMap.pySaliencyMap(I_bgr.shape[1], I_bgr.shape[0])
+    _em = sm.SMGetSM(I_bgr)
+    energy_map = enhance_em(I_lab, _em)
+    L_new = shad_saliency_enhace(energy_map, I_lab[...,0], I_bgr)
     I_lab[...,0] = L_new
     I_res_bgr = cv2.cvtColor(I_lab, cv2.COLOR_LAB2BGR)
+    return I_res_bgr
+
+def _test():
+    I_bgr = cv2.imread(IMG_DIR+'pic36.jpg')
+    I_res_bgr = ss_enhance(I_bgr)
     cape_util.display(np.hstack([I_bgr, I_res_bgr]))
     return
 

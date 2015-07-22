@@ -72,7 +72,12 @@ def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh
     #                    , name='exposure corrected L', mode='gray')
     return I_out_expo_crr
 
-def CAPE(I_origin, _eacp_lambda_=0.2):
+def face_enhancement(I_origin, _eacp_lambda_=0.2):
+    """
+    Keyword Arguments:
+    I             -- np.uint8, (m,n,3), BGR
+    _eacp_lambda_ -- float, scala
+    """
     _I_LAB = cv2.cvtColor(I_origin, cv2.COLOR_BGR2LAB)
     I = _I_LAB[...,0]
     Base, Detail = wls_filter.wlsfilter(I)
@@ -111,12 +116,11 @@ def CAPE(I_origin, _eacp_lambda_=0.2):
     I_res = cv2.cvtColor(_I_LAB, cv2.COLOR_LAB2BGR)
     return I_res
 
-
 def main():
     DIR = './eacp_lambda/'
     I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
     for lambda_ in cape_util.frange(0.2, 4.0, 0.2):
-        I_res = CAPE(I_origin, lambda_)
+        I_res = face_enhancement(I_origin, lambda_)
         cv2.imwrite( DIR+'eacp_lambda='+str(lambda_)+'.png'
                      , np.hstack([I_origin, I_res]) )
     return 0

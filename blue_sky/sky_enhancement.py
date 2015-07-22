@@ -19,7 +19,6 @@ import cv2
 import numpy as np
 from scipy.stats import norm
 from scipy import ndimage as ndi
-# from scipy import optimize as opt
 from matplotlib import pyplot as plt
 import ipdb
 
@@ -253,19 +252,29 @@ def sky_enhance(X, P, Sbgr
 
     return res
 
+def sky_enhancement(I):
+    """
+    Main function to perform sky enhancement
+    Keyword Arguments:
+    I -- np.uint8 (m,n,3), BGR
+    Returns:
+    res -- np.uint8 (m,n,3), I with sky part enhanced
+    sky_prob_map -- np.float 0-1 (m,n,1), sky probability map
+    """
+    S, sky_prob_map = sky_ref_patch_detection(I)
+    X = sky_cloud_decompose(S, sky_prob_map, cape_util.mask_skin(I, sky_prob_map.astype(bool)))
+    Sbgr = np.array([[S]], dtype='uint8')
+    P = sky_prob_map[sky_prob_to_01(sky_prob_map, thresh=0.0)].reshape(1,-1) # return sky_prob regarded as sky
+    enhance_res = sky_enhance( X, P, Sbgr, I, sky_prob_map)
+    res = I.copy()
+    res[sky_prob_to_01(sky_prob_map, thresh=0.0)] = enhance_res[0]
+    # res shape is (1, num_sky_pixels, 3)
+    return res, sky_prob_map
+
 def main():
     I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
     # ipdb.set_trace()
-    S, sky_prob_map = sky_ref_patch_detection(I_origin)
-    #!! sky_prob_map should have 0~1 values, treat as 0?1?
-
-    X = sky_cloud_decompose(S, sky_prob_map, cape_util.mask_skin(I_origin, sky_prob_map.astype(bool)))
-    Sbgr = np.array([[S]], dtype='uint8')
-    P = sky_prob_map[sky_prob_to_01(sky_prob_map, thresh=0.0)].reshape(1,-1) # return sky_prob regarded as sky
-    res = sky_enhance( X, P, Sbgr
-                       ,I_origin, sky_prob_map)
-    res_disp = I_origin.copy();
-    res_disp[sky_prob_to_01(sky_prob_map, thresh=0.0)] = res[0] # res.shape is (1, num_sky_pixels, 3)
+    res_disp,_ = sky_enhancement(I_origin)
     cape_util.display(np.hstack([I_origin, res_disp]))
     return 0
 

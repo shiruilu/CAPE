@@ -14,9 +14,13 @@ import ipdb
 IMG_DIR = '../resources/images/'
 BM_DIR = './benchmarks/'
 
-def ellipse_test(A, B, bound=1.0, prob=1.0):
+def ellipse_test(A, B, bound=1.0, prob=1.0, return_prob=False):
     '''test a CIELab color falls in certain ellipse'''
-    return (1.0*(A-143)/6.5)**2 + (1.0*(B-148)/12.0)**2 < (1.0*bound/prob)
+    elpse = (1.0*(A-143)/6.5)**2 + (1.0*(B-148)/12.0)**2
+    if not return_prob:
+        return elpse < (1.0*bound/prob)
+    else:
+        return np.minimum(1.0/elpse, 1.0)
 
 def check_neighbor(mask):
     neighbor = np.ones([4,4], dtype='float')
@@ -34,22 +38,36 @@ def skin_detect(img):
     img_LAB = cv2.cvtColor(img, cv2.COLOR_BGR2LAB).astype('float')
     img_HSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype('float')
 
-    # s = time.time()
     # ellipse and HSV_test
     skinMask[ ellipse_test(img_LAB[...,1], img_LAB[...,2], bound=1.0, prob=1.0)
               & HSV_threshold(img_HSV[...,0], img_HSV[...,1]) ] \
         = 255
-    # print time.time()-s
     # relaxed ellipse test, guarenteed by skin neighborhood
     skinMask[ (skinMask ==0)
               & ellipse_test(img_LAB[...,1], img_LAB[...,2]
                              , bound=1.25, prob=0.9)
               & check_neighbor(skinMask)] = 255
-    # print time.time()-s
     # initialization, can't remove, otherwise mask==0 area will be random
     skin = 255*np.ones(img.shape, img.dtype)
     skin = cv2.bitwise_and(img, img, mask=skinMask)
     return skin, (skinMask/255).astype(bool)
+
+def skin_prob_map(img):
+    """
+    Keyword Arguments:
+    img -- np.uint8 (m,n,3) BGR
+    """
+    # initialized all-white mask
+    skin_prob_map = np.zeros(img.shape[0:2], dtype='float')
+    img_LAB = cv2.cvtColor(img, cv2.COLOR_BGR2LAB).astype('float')
+    img_HSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype('float')
+    skin_prob_map = ellipse_test(img_LAB[...,1], img_LAB[...,2], bound=1.0, prob=1.0, return_prob=True)
+    skin_prob_map[HSV_threshold(img_HSV[...,0], img_HSV[...,1]) ] = 0.0
+    skin_prob_map[ (skin_prob_map < 1.0)
+              & ellipse_test(img_LAB[...,1], img_LAB[...,2]
+                             , bound=1.25, prob=0.9)
+                   & check_neighbor(255*(skin_prob_map==1.0).astype('uint8'))] = 1.0
+    return skin_prob_map
 
 def main():
     img = cv2.imread(IMG_DIR+'teaser_face.png')
