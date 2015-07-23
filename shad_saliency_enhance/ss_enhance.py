@@ -59,6 +59,7 @@ def get_w_spacial((n,m)):
     for j in range(m):
         xy[:,j:1] = j
 
+    import ipdb; ipdb.set_trace()
     return 1 - ( np.sqrt((xy[...,0]-xc)**2 + (xy[...,1]-yc)**2) / maxdE )**2
 
 def get_eH(I):

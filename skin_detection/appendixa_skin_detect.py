@@ -20,7 +20,7 @@ def ellipse_test(A, B, bound=1.0, prob=1.0, return_prob=False):
     if not return_prob:
         return elpse < (1.0*bound/prob)
     else:
-        return np.minimum(1.0/elpse, 1.0)
+        return np.minimum(1.0/(elpse+1e-6), 1.0)
 
 def check_neighbor(mask):
     neighbor = np.ones([4,4], dtype='float')

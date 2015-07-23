@@ -57,7 +57,7 @@ def main():
     res_sky, sky_prob_map = sky_enhancement.sky_enhancement(res_skin)
     res_ss = ss_enhance.ss_enhance(res_sky)
     res_de = detail_enhace(res_ss, skin_prob_map, sky_prob_map)
-    cape_util.display(res_de)
+    cape_util.display( np.hstack([I_org,res_de]) )
     return 0
 
 if __name__ == '__main__':
