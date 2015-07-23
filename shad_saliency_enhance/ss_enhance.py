@@ -57,9 +57,9 @@ def get_w_spacial((n,m)):
     for i in range(n):
         xy[i,:,0] = i
     for j in range(m):
-        xy[:,j:1] = j
+        xy[:,j,1] = j
 
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     return 1 - ( np.sqrt((xy[...,0]-xc)**2 + (xy[...,1]-yc)**2) / maxdE )**2
 
 def get_eH(I):
@@ -148,7 +148,7 @@ def get_skin_mask(I_lab, I_bgr):
 
     return skin_mask
 
-def enhance_em(I, em, face_mask_thres=0.1):
+def enhance_em(I, em, face_mask_thresh=0.3):
     """
     (hack) some fix of the energy map
     I: BGR mode
@@ -158,12 +158,13 @@ def enhance_em(I, em, face_mask_thres=0.1):
     # mask = apa_skin.skin_detect(I_aindane)[1]
     I_lab = cv2.cvtColor(I, cv2.COLOR_BGR2LAB)
     mask = get_skin_mask(I_lab, I).astype('float') # face mask
-    mask *= face_mask_thres
+    mask *= face_mask_thresh
     plt.imshow(mask); plt.show()
     I_gray = cv2.cvtColor(I, cv2.COLOR_BGR2GRAY)
     w_spacial = get_w_spacial(I_gray.shape)
     em_res = w_spacial * ((em+mask)/(em+mask).max())
     em_res = eacp.EACP(em_res, I_lab[...,0])
+    em_res /= em_res.sum() # normalize energy map
     return em_res
 
 def ss_enhance(I_bgr):
