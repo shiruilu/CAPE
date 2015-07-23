@@ -4,6 +4,15 @@ Created on May 27, 2015
 
 skin detect from Appendix A of CAPE
 """
+import os
+import sys
+
+source_dirs = ['cape_util']
+
+for d in source_dirs:
+    sys.path.insert( 0, os.path.join(os.getcwd(), d) )
+
+import cape_util
 
 import numpy as np
 import cv2
@@ -47,10 +56,16 @@ def skin_detect(img):
               & ellipse_test(img_LAB[...,1], img_LAB[...,2]
                              , bound=1.25, prob=0.9)
               & check_neighbor(skinMask)] = 255
+    # filling holes:image closing on skinMask
+    # http://stackoverflow.com/a/10317883/2729100
+    _h,_w = img.shape[0:2]
+    _kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(_h/6,_w/6))
+    skinMask_closed = cv2.morphologyEx(skinMask,cv2.MORPH_CLOSE,_kernel)
+    cape_util.display(np.hstack([skinMask, skinMask_closed]), name='skin mask closing before after', mode='gray')
     # initialization, can't remove, otherwise mask==0 area will be random
     skin = 255*np.ones(img.shape, img.dtype)
-    skin = cv2.bitwise_and(img, img, mask=skinMask)
-    return skin, (skinMask/255).astype(bool)
+    skin = cv2.bitwise_and(img, img, mask=skinMask_closed)
+    return skin, (skinMask_closed/255).astype(bool)
 
 def skin_prob_map(img):
     """
