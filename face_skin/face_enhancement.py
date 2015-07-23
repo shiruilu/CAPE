@@ -30,6 +30,7 @@ IMG_DIR = '../resources/images/'
 BM_DIR = './benchmarks/'
 
 def sidelight_correction(I_out, H, S, faces_xywh, _eacp_lambda_):
+    import ipdb; ipdb.set_trace()
     I_out_255 = cape_util.mag(I_out, 'float')
     bimodal_Fs, D, M, B = cape_util.detect_bimodal(H)
     A = np.ones(I_out_255.shape)
@@ -45,9 +46,9 @@ def sidelight_correction(I_out, H, S, faces_xywh, _eacp_lambda_):
             print '? bimodal not detected on', i, 'th face'
 
     I_out_side_crr = EACP(I_out_255 *A, I_out_255, lambda_=_eacp_lambda_)
-    # # to visualize sidelight corrected result
-    # cape_util.display( cape_util.mag(I_out_side_crr, 'trim')
-    #                    , name='sidelight corrected, L' ,mode='gray')
+    # to visualize sidelight corrected result
+    cape_util.display( cape_util.mag(I_out_side_crr, 'trim')
+                       , name='sidelight corrected, L' ,mode='gray')
     return I_out_side_crr # float [0.0,255.0]
 
 def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh
@@ -67,9 +68,9 @@ def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh
             A[y:y+h, x:x+w][face >0] = f; # >0 means every pixel *\in S*
             I_out_expo_crr = EACP(A*I_out_side_crr, I_out_255
                                   , lambda_=_eacp_lambda_)
-    # # to visualize exposure corrected face
-    # cape_util.display( cape_util.mag(I_out_expo_crr, 'trim')
-    #                    , name='exposure corrected L', mode='gray')
+    # to visualize exposure corrected face
+    cape_util.display( cape_util.mag(I_out_expo_crr, 'trim')
+                       , name='exposure corrected L', mode='gray')
     return I_out_expo_crr
 
 def face_enhancement(I_origin, _eacp_lambda_=0.2):

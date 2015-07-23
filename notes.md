@@ -54,3 +54,5 @@ On ewsn [HTML, CSDN](http://blog.csdn.net/songzitea/article/details/12851723)
 Also this blog post [HTML](http://arc8.riaos.com/?p=7020)
 
 Programming, uint8 and float type problem of a np array as image [HTML, stackoverflow](http://stackoverflow.com/questions/7547557/numpy-uint8-pixel-wrapping-solution)
+
+Constraint Propagation [PDF](http://www.math-cs.gordon.edu/courses/cps331/lectures-2012/Constraint%20Propagation.pdf)

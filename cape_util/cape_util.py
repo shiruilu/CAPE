@@ -76,11 +76,11 @@ def mag(img, dtype='int'):
     magnify from [0,1] to [0.255]
     """
     if dtype == 'int':
-        return np.rint(img*255).astype('uint8')
+        return safe_convert(np.rint(img*255), np.uint8)
     elif dtype == 'float':
         return (img*255)
     elif dtype == 'trim':
-        return np.rint(img).astype('uint8')
+        return safe_convert(np.rint(img), np.uint8)
     else:
         raise ValueError('no such data type')
 
