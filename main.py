@@ -53,7 +53,7 @@ def detail_enhace(I, skin_prob_map, sky_prob_map, c=0.2):
 def main():
     I_org = cv2.imread(IMG_DIR+'input_teaser.png')
     skin_prob_map = apa_skin.skin_prob_map(I_org)
-    lambda_ = 1.0
+    lambda_ = 0.2
     res_skin = face_enhancement.face_enhancement(I_org, lambda_)
     res_sky, sky_prob_map = sky_enhancement.sky_enhancement(res_skin)
     res_ss = ss_enhance.ss_enhance(res_sky)

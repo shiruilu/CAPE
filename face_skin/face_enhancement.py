@@ -30,24 +30,35 @@ IMG_DIR = '../resources/images/'
 BM_DIR = './benchmarks/'
 
 def sidelight_correction(I_out, H, S, faces_xywh, _eacp_lambda_):
-    import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     I_out_255 = cape_util.mag(I_out, 'float')
     bimodal_Fs, D, M, B = cape_util.detect_bimodal(H)
     A = np.ones(I_out_255.shape)
+    W = np.zeros(I_out_255.shape)
     for i in range(len(bimodal_Fs)):
         if bimodal_Fs[i] == True:
             b = B[i]; d = D[i]; m = M[i];
             f = (b-d) / (m-d)
             x,y,w,h = faces_xywh[i]
             # ipdb.set_trace()
+            # A = np.ones([h,w]) # same shape as detected face
             A[y:y+h, x:x+w][(cape_util.mag(S[i], 'float') <m)
                         & (cape_util.mag(S[i], 'float') >0)] = f #<m and \in S
+            global W
+            miu = (I_out_255[A==f]).mean()
+            sig = 40 # manually set, 3*sig = 120 close to 255/2
+            W = np.exp(-(I_out_255-miu)**2/sig**2)
+            W[A==f] = 1.
+            # face_i_crr = EACP(I_out_255[y:y+h,x:x+w]*A, I_out_255[y:y+h,x:x+w], lambda_=_eacp_lambda_)
+            # I_out_255[y:y+h, x:x+w] = face_i_crr
         else:
             print '? bimodal not detected on', i, 'th face'
-
-    I_out_side_crr = EACP(I_out_255 *A, I_out_255, lambda_=_eacp_lambda_)
+    # W[...] = 1.
+    plt.imshow(W, cmap='jet'); plt.show()
+    I_out_side_crr = EACP(I_out_255 *A, I_out_255, W, lambda_=_eacp_lambda_)
+    I_out_side_crr = cape_util.mag(I_out_side_crr, 'trim')
     # to visualize sidelight corrected result
-    cape_util.display( cape_util.mag(I_out_side_crr, 'trim')
+    cape_util.display( I_out_side_crr
                        , name='sidelight corrected, L' ,mode='gray')
     return I_out_side_crr # float [0.0,255.0]
 
@@ -120,10 +131,14 @@ def face_enhancement(I_origin, _eacp_lambda_=0.2):
 def main():
     DIR = './eacp_lambda/'
     I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
-    for lambda_ in cape_util.frange(0.2, 4.0, 0.2):
-        I_res = face_enhancement(I_origin, lambda_)
-        cv2.imwrite( DIR+'eacp_lambda='+str(lambda_)+'.png'
-                     , np.hstack([I_origin, I_res]) )
+    # tuning lambda
+    # for lambda_ in cape_util.frange(0.2, 4.0, 0.2):
+    #     I_res = face_enhancement(I_origin, lambda_)
+    #     cv2.imwrite( DIR+'eacp_lambda='+str(lambda_)+'.png'
+    #                  , np.hstack([I_origin, I_res]) )
+    lambda_ = 1.0
+    I_res = face_enhancement(I_origin, lambda_)
+    cape_util.display( np.hstack([I_origin, I_res]) )
     return 0
 
 if __name__ == '__main__':

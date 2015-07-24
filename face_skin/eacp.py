@@ -10,7 +10,7 @@ from scipy.sparse import spdiags
 from scipy.sparse.linalg import spsolve
 
 
-def EACP(G, I, lambda_=1.0, alpha=1.0, eps=1e-4):
+def EACP(G, I, W, lambda_=0.2, alpha=1.0, eps=1e-4):
     """
     Edge-aware constraint propagation
     From "Interactive Local Adjustment of Tonal Values"[LFUS06]
@@ -18,11 +18,14 @@ def EACP(G, I, lambda_=1.0, alpha=1.0, eps=1e-4):
     -----
     G(A): will be g(x) in 3.2 of LFUS06, desired result.
     I: will be transformed to L (log luminance channel)
+    W: float,(0-1) will be flattened to w, specifies a weight for each constrained pixel
     """
     if G.shape != I.shape:
         raise ValueError('A and I are not in the same size')
     L = np.log(I+eps) # avoid log of 0
+    # L = I
     g = G.flatten(1)
+    w = W.flatten(1)
     s = L.shape
 
     k = np.prod(s)
@@ -39,9 +42,9 @@ def EACP(G, I, lambda_=1.0, alpha=1.0, eps=1e-4):
     # A case: j \in N_4(i)  (neighbors of diagonal line)
     a = spdiags(np.vstack((dx, dy)), [-s[0], -1], k, k)
     # A case: i=j   (diagonal line)
-    d = 1 - (dx + np.roll(dx, s[0]) + dy + np.roll(dy, 1))
+    d = w - (dx + np.roll(dx, s[0]) + dy + np.roll(dy, 1))
     a = a + a.T + spdiags(d, 0, k, k) # A: put together
-    f = spsolve(a, g).reshape(s[::-1]) # slove Af  =  b =(w=1)*g and restore 2d
+    f = spsolve(a, w*g).reshape(s[::-1]) # slove Af  =  b =w*g and restore 2d
     A = np.rollaxis(f,1)
     # A = np.clip( _out*255.0, 0, 255).astype('uint8')
     return A

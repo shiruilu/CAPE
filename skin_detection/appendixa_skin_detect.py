@@ -60,7 +60,8 @@ def skin_detect(img):
     # http://stackoverflow.com/a/10317883/2729100
     _h,_w = img.shape[0:2]
     _kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(_h/10,_w/10))
-    skinMask_closed = cv2.morphologyEx(skinMask,cv2.MORPH_CLOSE,_kernel)
+    # skinMask_closed = cv2.morphologyEx(skinMask,cv2.MORPH_CLOSE,_kernel)
+    skinMask_closed = skinMask
     cape_util.display(np.hstack([skinMask, skinMask_closed]), name='skin mask closing before after', mode='gray')
     # initialization, can't remove, otherwise mask==0 area will be random
     skin = 255*np.ones(img.shape, img.dtype)
