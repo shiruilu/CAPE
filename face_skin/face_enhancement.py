@@ -46,7 +46,7 @@ def sidelight_correction(I_out, H, S, faces_xywh, _eacp_lambda_):
                         & (cape_util.mag(S[i], 'float') >0)] = f #<m and \in S
             global W
             miu = (I_out_255[A==f]).mean()
-            sig = 40 # manually set, 3*sig = 120 close to 255/2
+            sig = 255 # manually set, 3*sig = 120 close to 255/2
             W = np.exp(-(I_out_255-miu)**2/sig**2)
             W[A==f] = 1.
             # face_i_crr = EACP(I_out_255[y:y+h,x:x+w]*A, I_out_255[y:y+h,x:x+w], lambda_=_eacp_lambda_)
