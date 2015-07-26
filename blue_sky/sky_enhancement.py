@@ -262,13 +262,16 @@ def sky_enhancement(I):
     sky_prob_map -- np.float 0-1 (m,n,1), sky probability map
     """
     S, sky_prob_map = sky_ref_patch_detection(I)
-    X = sky_cloud_decompose(S, sky_prob_map, cape_util.mask_skin(I, sky_prob_map.astype(bool)))
-    Sbgr = np.array([[S]], dtype='uint8')
-    P = sky_prob_map[sky_prob_to_01(sky_prob_map, thresh=0.0)].reshape(1,-1) # return sky_prob regarded as sky
-    enhance_res = sky_enhance( X, P, Sbgr, I, sky_prob_map)
     res = I.copy()
-    res[sky_prob_to_01(sky_prob_map, thresh=0.0)] = enhance_res[0]
     # res shape is (1, num_sky_pixels, 3)
+    # import ipdb; ipdb.set_trace()
+    if sky_prob_to_01(sky_prob_map, thresh=0.).any():
+        X = sky_cloud_decompose(S, sky_prob_map, cape_util.mask_skin(I, sky_prob_map.astype(bool)))
+        Sbgr = np.array([[S]], dtype='uint8')
+        P = sky_prob_map[sky_prob_to_01(sky_prob_map, thresh=0.0)].reshape(1,-1) # return sky_prob regarded as sky
+        enhance_res = sky_enhance( X, P, Sbgr, I, sky_prob_map)
+        res[sky_prob_to_01(sky_prob_map, thresh=0.0)] = enhance_res[0]
+
     return res, sky_prob_map
 
 def main():

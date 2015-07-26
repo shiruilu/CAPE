@@ -12,7 +12,7 @@ def EACP_core(G, I, lambda_=0.2, alpha=1, small_eps=1e-4):
     """
     
 
-def wlsfilter(image_orig, lambda_=0.1, alpha=1.2, small_eps=1e-4):
+def wlsfilter(image_orig, lambda_=0.6, alpha=1.2, small_eps=1e-4):
     """
     ARGs:
     -----

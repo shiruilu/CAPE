@@ -10,7 +10,7 @@ from scipy.sparse import spdiags
 from scipy.sparse.linalg import spsolve
 
 
-def EACP(G, I, W, lambda_=0.2, alpha=1.0, eps=1e-4):
+def EACP(G, I, W=None, lambda_=0.2, alpha=1.0, eps=1e-4):
     """
     Edge-aware constraint propagation
     From "Interactive Local Adjustment of Tonal Values"[LFUS06]
@@ -22,6 +22,8 @@ def EACP(G, I, W, lambda_=0.2, alpha=1.0, eps=1e-4):
     """
     if G.shape != I.shape:
         raise ValueError('A and I are not in the same size')
+    if W == None:
+        W = np.ones(G.shape)
     L = np.log(I+eps) # avoid log of 0
     # L = I
     g = G.flatten(1)

@@ -46,9 +46,12 @@ def sidelight_correction(I_out, H, S, faces_xywh, _eacp_lambda_):
                         & (cape_util.mag(S[i], 'float') >0)] = f #<m and \in S
             global W
             miu = (I_out_255[A==f]).mean()
-            sig = 255 # manually set, 3*sig = 120 close to 255/2
+            sig = 255*3 # manually set, 3*sig = 120 close to 255/2
             W = np.exp(-(I_out_255-miu)**2/sig**2)
-            W[A==f] = 1.
+            # W[A==f] = 1.
+            W[...] = 1-W[...]
+            # W[A!=f] =1.
+            W[...] = 1.
             # face_i_crr = EACP(I_out_255[y:y+h,x:x+w]*A, I_out_255[y:y+h,x:x+w], lambda_=_eacp_lambda_)
             # I_out_255[y:y+h, x:x+w] = face_i_crr
         else:
@@ -56,9 +59,8 @@ def sidelight_correction(I_out, H, S, faces_xywh, _eacp_lambda_):
     # W[...] = 1.
     plt.imshow(W, cmap='jet'); plt.show()
     I_out_side_crr = EACP(I_out_255 *A, I_out_255, W, lambda_=_eacp_lambda_)
-    I_out_side_crr = cape_util.mag(I_out_side_crr, 'trim')
     # to visualize sidelight corrected result
-    cape_util.display( I_out_side_crr
+    cape_util.display( cape_util.mag(I_out_side_crr, 'trim')
                        , name='sidelight corrected, L' ,mode='gray')
     return I_out_side_crr # float [0.0,255.0]
 
@@ -75,10 +77,10 @@ def exposure_correction(I_out, I_out_side_crr, skin_masks, faces_xywh
                               ,[0],None,[255],[1,256]).T.ravel().cumsum()
         p = np.searchsorted(cumsum, cumsum[-1]*0.75)
         if p <120:
-            f = (120+p)/(2*p)
+            f = (120+p)/((2*p)+1e-6)
             A[y:y+h, x:x+w][face >0] = f; # >0 means every pixel *\in S*
             I_out_expo_crr = EACP(A*I_out_side_crr, I_out_255
-                                  , lambda_=_eacp_lambda_)
+                                  ,np.ones(I_out_expo_crr.shape) ,lambda_=_eacp_lambda_)
     # to visualize exposure corrected face
     cape_util.display( cape_util.mag(I_out_expo_crr, 'trim')
                        , name='exposure corrected L', mode='gray')
@@ -97,11 +99,18 @@ def face_enhancement(I_origin, _eacp_lambda_=0.2):
 
     I_aindane = aindane.aindane(I_origin)
     faces_xywh = vj_face.face_detect(I_aindane)
+    import ipdb; ipdb.set_trace()
     faces = [ I_origin[y:y+h, x:x+w] for (x,y,w,h) in faces_xywh ]
     skin_masks = [ apa_skin.skin_detect(face) for face in faces ]
+    _any_skin = False
+    for _mask in skin_masks:
+        _any_skin |= ((_mask[1]).any())
+    if (faces_xywh==[]) or _any_skin: # face not detected
+        print 'face or skin not detected!'
+        return I_origin
     _I_out_faces = [ I_out[y:y+h, x:x+w] for (x,y,w,h) in faces_xywh ] #float[0,1]
     S = [ cape_util.mask_skin(_I_out_faces[i], skin_masks[i][1]) \
-               for i in range(len(_I_out_faces)) ] # float [0,1]
+          for i in range(len(_I_out_faces)) ] # float [0,1]
 
     # # to visualize detected skin and it's (unsmoothed) hist
     # for s in S:
@@ -136,7 +145,7 @@ def main():
     #     I_res = face_enhancement(I_origin, lambda_)
     #     cv2.imwrite( DIR+'eacp_lambda='+str(lambda_)+'.png'
     #                  , np.hstack([I_origin, I_res]) )
-    lambda_ = 1.0
+    lambda_ = 0.2
     I_res = face_enhancement(I_origin, lambda_)
     cape_util.display( np.hstack([I_origin, I_res]) )
     return 0
