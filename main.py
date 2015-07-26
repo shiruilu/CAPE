@@ -51,15 +51,23 @@ def detail_enhace(I, skin_prob_map, sky_prob_map, c=0.2):
     return cv2.cvtColor(I_lab, cv2.COLOR_LAB2BGR)
 
 def main():
-    I_org = cv2.imread(IMG_DIR+'input_teaser.png')
+    img_name = 'pic36.jpg'
+    I_org = cv2.imread(IMG_DIR+ img_name)
     skin_prob_map = apa_skin.skin_prob_map(I_org)
     lambda_ = 0.2
-    res_skin = face_enhancement.face_enhancement(I_org, lambda_)
+    res_skin = I_org
+    # res_skin = face_enhancement.face_enhancement(I_org, lambda_)
+    # cape_util.display( np.hstack([I_org,res_skin]), name='res_skin' )
     res_sky, sky_prob_map = sky_enhancement.sky_enhancement(res_skin)
+    cape_util.display( np.hstack([I_org,res_sky]), name='res_sky' )
     res_ss = ss_enhance.ss_enhance(res_sky)
+    cape_util.display( np.hstack([I_org,res_ss]), name='res_ss' )
     res_de = detail_enhace(res_ss, skin_prob_map, sky_prob_map)
+    cape_util.display( np.hstack([I_org,res_de]), name='res_de' )
     # res_de = res_ss
     cape_util.display( np.hstack([I_org,res_de]), name='lambda_='+str(lambda_) )
+    DIR = './resources/results/'
+    cv2.imwrite( DIR+str.split(img_name, '.')[0]+'_res.png', np.hstack([I_org, res_de]) )
     return 0
 
 if __name__ == '__main__':
