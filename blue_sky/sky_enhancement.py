@@ -260,7 +260,9 @@ def sky_enhancement(I):
     """
     S, sky_prob_map = sky_ref_patch_detection(I)
     res = I.copy() # res shape is (1, num_sky_pixels, 3)
-    if sky_prob_to_01(sky_prob_map, thresh=0.).any():
+    if S == []:
+        print 'S is empty'
+    elif sky_prob_to_01(sky_prob_map, thresh=0.).any():
         X = sky_cloud_decompose(S, sky_prob_map, cape_util.mask_skin(I, sky_prob_map.astype(bool)))
         Sbgr = np.array([[S]], dtype='uint8')
         P = sky_prob_map[sky_prob_to_01(sky_prob_map, thresh=0.0)].reshape(1,-1) # return sky_prob regarded as sky

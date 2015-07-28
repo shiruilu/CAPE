@@ -81,7 +81,7 @@ def detail_enhace(I, skin_prob_map, sky_prob_map, c=0.2):
     return cv2.cvtColor(I_lab, cv2.COLOR_LAB2BGR)
 
 def main():
-    img_name = 'pic1.jpg'
+    img_name = 'pic2.jpg'
     I_org = cv2.imread(IMG_DIR+ img_name)
     skin_prob_map = apa_skin.skin_prob_map(I_org)
     lambda_ = 120
