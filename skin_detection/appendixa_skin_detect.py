@@ -10,7 +10,7 @@ import sys
 source_dirs = ['cape_util']
 
 for d in source_dirs:
-    sys.path.insert( 0, os.path.join(os.getcwd(), d) )
+    sys.path.insert( 0, os.path.join(os.getcwd(), '../'+d) )
 
 import cape_util
 
@@ -48,20 +48,20 @@ def skin_detect(img):
     img_HSV = cv2.cvtColor(img, cv2.COLOR_BGR2HSV).astype('float')
 
     # ellipse and HSV_test
-    skinMask[ ellipse_test(img_LAB[...,1], img_LAB[...,2], bound=1.0, prob=1.0)
+    skinMask[ ellipse_test(img_LAB[...,1], img_LAB[...,2], bound=1.0, prob=0.6)
               & HSV_threshold(img_HSV[...,0], img_HSV[...,1]) ] \
         = 255
     # relaxed ellipse test, guarenteed by skin neighborhood
     skinMask[ (skinMask ==0)
               & ellipse_test(img_LAB[...,1], img_LAB[...,2]
-                             , bound=1.25, prob=0.9)
+                             , bound=1.25, prob=0.6)
               & check_neighbor(skinMask)] = 255
     # filling holes:image closing on skinMask
     # http://stackoverflow.com/a/10317883/2729100
     _h,_w = img.shape[0:2]
-    _kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(_h/10,_w/10))
-    # skinMask_closed = cv2.morphologyEx(skinMask,cv2.MORPH_CLOSE,_kernel)
-    skinMask_closed = skinMask
+    _kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(_h/16,_w/16))
+    skinMask_closed = cv2.morphologyEx(skinMask,cv2.MORPH_CLOSE,_kernel)
+    # skinMask_closed = skinMask
     cape_util.display(np.hstack([skinMask, skinMask_closed]), name='skin mask closing before after', mode='gray')
     # initialization, can't remove, otherwise mask==0 area will be random
     skin = 255*np.ones(img.shape, img.dtype)

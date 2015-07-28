@@ -6,13 +6,8 @@ import matplotlib.pyplot as plt
 
 IMG_DIR = '../resources/images/'
 
-def EACP_core(G, I, lambda_=0.2, alpha=1, small_eps=1e-4):
-    """
-    ? wls filter is using EACP as core idea
-    """
-    
 
-def wlsfilter(image_orig, lambda_=0.6, alpha=1.2, small_eps=1e-4):
+def wlsfilter(image_orig, lambda_=0.4, alpha=1.2, small_eps=1e-4):
     """
     ARGs:
     -----
@@ -25,6 +20,7 @@ def wlsfilter(image_orig, lambda_=0.6, alpha=1.2, small_eps=1e-4):
     out: base, 0-1, float
     detail: detail, 0-1, float
     """
+    print 'wls: lambda, alpha', lambda_, alpha
     image = image_orig.astype(numpy.float)/255.0
     s = image.shape
 

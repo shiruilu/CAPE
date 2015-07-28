@@ -98,6 +98,8 @@ def display(img, name='', mode='bgr'):
         plt.imshow(img)
     elif mode == 'gray':
         plt.imshow(img, 'gray')
+    elif mode == 'rainbow':
+        plt.imshow(img, cmap='rainbow')
     else:
         raise ValueError('CAPE display: unkown mode')
     plt.title(name)
