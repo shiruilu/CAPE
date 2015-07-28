@@ -39,7 +39,7 @@ def global_enhace(I_bgr, skin_prob_map, sky_prob_map):
     skin_prob_map -- float, 0-1
     sky_prob_map  -- float, 0-1
     """
-    skin_mask = skin_prob_map > 0.7
+    skin_mask = skin_prob_map > 1.0
     sky_mask  = sky_prob_map  > 0.0
     # stretch the image contrast to full range by clipping 0.5% of the d/b
     _I_bgr_f = I_bgr.astype('float')
@@ -56,8 +56,9 @@ def global_enhace(I_bgr, skin_prob_map, sky_prob_map):
             )[~skin_mask & ~sky_mask]
 
     # increase the saturation of each pixel by 20%
+    # 180*1.2 < 255, no need to worry about overflow
     I_hsv_s = cv2.cvtColor(I_bgr_stretched, cv2.COLOR_BGR2HSV)
-    I_hsv_s[...,1][~skin_mask & ~sky_mask] *= 1.2
+    I_hsv_s[...,1][~skin_mask & ~sky_mask] = np.minimum(I_hsv_s[...,1][~skin_mask & ~sky_mask]*1.2, 180)
 
     return cv2.cvtColor(I_hsv_s, cv2.COLOR_HSV2BGR)
 
@@ -80,7 +81,7 @@ def detail_enhace(I, skin_prob_map, sky_prob_map, c=0.2):
     return cv2.cvtColor(I_lab, cv2.COLOR_LAB2BGR)
 
 def main():
-    img_name = 'input_teaser.png'
+    img_name = 'pic1.jpg'
     I_org = cv2.imread(IMG_DIR+ img_name)
     skin_prob_map = apa_skin.skin_prob_map(I_org)
     lambda_ = 120
