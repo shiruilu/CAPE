@@ -31,12 +31,12 @@ BM_DIR = './benchmarks/'
 
 def in_idea_blue_rg(I_origin):
     img = I_origin.astype(float)
-    IDEAL_SKY_BGR = (225, 190, 170)
+    IDEAL_SKY_BGR = (225, 180, 165)
     # RANGE = (25, 30, 50)
-    RANGE = (35, 35, 55)
+    RANGE = (45, 55, 65)
     return (abs(img[...,0]-IDEAL_SKY_BGR[0]) < RANGE[0]) \
-        & (abs(img[...,1]-IDEAL_SKY_BGR[1]) < RANGE[1]) \
-        & (abs(img[...,2]-IDEAL_SKY_BGR[2]) < RANGE[2])
+         & (abs(img[...,1]-IDEAL_SKY_BGR[1]) < RANGE[1]) \
+         & (abs(img[...,2]-IDEAL_SKY_BGR[2]) < RANGE[2])
 
 def get_smoothed_hist(I_gray, ksize=30, sigma=10):
     """
@@ -52,7 +52,7 @@ def get_smoothed_hist(I_gray, ksize=30, sigma=10):
     h:      Smoothed hist
     """
     _h = cv2.calcHist([I_gray],[0],None,[255],[1,256]).T.ravel()
-    h = np.correlate(_h, cv2.getGaussianKernel(ksize,sigma).ravel(), 'same')
+    h  = np.correlate(_h, cv2.getGaussianKernel(ksize,sigma).ravel(), 'same')
     return h
 
 def _var_lenpos(val, pos):
@@ -69,7 +69,6 @@ def get_sky_ref_patch(f_gray_one_third):
     """
     lbl, nlbl = ndi.label(f_gray_one_third)
     lbls = np.arange(1, nlbl+1)
-    # ipdb.set_trace()
     _res = ndi.labeled_comprehension(f_gray_one_third, lbl, lbls, _var_lenpos, object, 0, True)
     val = []; lenpos = [];
 
@@ -145,8 +144,9 @@ def sky_ref_patch_detection(I_origin):
                 _rv_sky_patch.pdf(I_origin[...,i])[sky_prob_map>0.0] / _rv_sky_patch.pdf(mean)
         _b=1.; _g=5.; _r=3.
         sky_prob_map = (_b*sky_prob_map_bgr[...,0] + _g*sky_prob_map_bgr[...,1] + _r*sky_prob_map_bgr[...,2]) / (_b+_g+_r)
+    else:
+        print 'sky not detected in top 1/3'
 
-    # ipdb.set_trace()
     plt.imshow(sky_prob_map); plt.show() # rainbow map
     print 'S(b,g,r): ',S
     return S, sky_prob_map
@@ -177,8 +177,7 @@ def sky_cloud_decompose(Sbgr, sky_prob_map ,sky_pixels, lambda_=1.0):
                    210 *np.ones( [1, only_sky_pixels.shape[0]] ),
                    1.05*np.ones( [1, only_sky_pixels.shape[0]] )] )
     # projected gradient descent
-    # ipdb.set_trace()
-    maxiter = 100;
+    maxiter = 1000;
     alpha = 0.2*1e-5
     # alpha = 0.5*1e-6
     i=0
@@ -224,12 +223,11 @@ def sky_enhance(X, P, Sbgr
     """
     Alpha = X[0]; C = X[1]; S=X[2]
 
-    f_sky_bgr = np.array([[[250,190,160]]], dtype='uint8')
+    f_sky_bgr = np.array([[[255,210,160]]], dtype='uint8')
     f_sky = cv2.cvtColor(f_sky_bgr, cv2.COLOR_BGR2LAB) # preferred color, in CIELab
     Slab = cv2.cvtColor(Sbgr, cv2.COLOR_BGR2LAB)
     f_lab = 1.0*f_sky / Slab # (f_l, f_a, f_b), correction ratio
     print 'f_lab: ', f_lab
-    # ipdb.set_trace()
     beta_old = cv2.cvtColor( cape_util.safe_convert(_2to3(S) * Sbgr, np.uint8), cv2.COLOR_BGR2LAB )
     kai_old = cv2.cvtColor( cape_util.safe_convert(_2to3(C), np.uint8), cv2.COLOR_BGR2LAB )
     # W = np.array([[[100, 0, 0]]])
@@ -243,7 +241,6 @@ def sky_enhance(X, P, Sbgr
     _fst = _2to3(1-Alpha)*cv2.cvtColor(beta_new.astype('uint8'), cv2.COLOR_LAB2BGR)
     _lst = _2to3(Alpha)*cv2.cvtColor(kai_new.astype('uint8'), cv2.COLOR_LAB2BGR)
     res = cv2.add( _fst, _lst ) # use cv2.add() to avoid overflow e.g. 150+125=255, not 20
-    # res = res.astype('uint8')
     # visualize _fst, _lst for debugging
     _first = I_origin.copy(); _last = I_origin.copy()
     _first[ sky_prob_to_01(sky_prob_map, thresh=0.0) ] = _fst[0]
@@ -262,21 +259,20 @@ def sky_enhancement(I):
     sky_prob_map -- np.float 0-1 (m,n,1), sky probability map
     """
     S, sky_prob_map = sky_ref_patch_detection(I)
-    res = I.copy()
-    # res shape is (1, num_sky_pixels, 3)
-    # import ipdb; ipdb.set_trace()
+    res = I.copy() # res shape is (1, num_sky_pixels, 3)
     if sky_prob_to_01(sky_prob_map, thresh=0.).any():
         X = sky_cloud_decompose(S, sky_prob_map, cape_util.mask_skin(I, sky_prob_map.astype(bool)))
         Sbgr = np.array([[S]], dtype='uint8')
         P = sky_prob_map[sky_prob_to_01(sky_prob_map, thresh=0.0)].reshape(1,-1) # return sky_prob regarded as sky
         enhance_res = sky_enhance( X, P, Sbgr, I, sky_prob_map)
         res[sky_prob_to_01(sky_prob_map, thresh=0.0)] = enhance_res[0]
+    else:
+        print 'no sky pixels detected!'
 
     return res, sky_prob_map
 
 def main():
     I_origin = cv2.imread(IMG_DIR+'input_teaser.png')
-    # ipdb.set_trace()
     res_disp,_ = sky_enhancement(I_origin)
     cape_util.display(np.hstack([I_origin, res_disp]))
     return 0
