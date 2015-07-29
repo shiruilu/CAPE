@@ -126,24 +126,21 @@ def face_enhancement(I_origin, _eacp_lambda_=0.2):
     # to visualize detected skin and it's (unsmoothed) hist
     for s in S:
         cape_util.display( cape_util.mag(s)
-                           , name='detected skin of L channel', mode='gray')
+                           , name='detected skin of L channel'
+                           , mode='gray')
         # plot original hist(rectangles form, of S). don't include 0(masked)
         plt.hist(cape_util.mag(s).ravel(), 255, [1,256])
         plt.xlim([1,256]); plt.show()
 
-    # unsmoothed hist (cv2.calcHist return 2d vector)
-    _H = [ cv2.calcHist([cape_util.mag(s)],[0],None,[255],[1,256]).T.ravel()
-           for s in S ]
-    # smooth hist, correlate only takes 1d input
-    H = [ np.correlate(_h, cv2.getGaussianKernel(30,10).ravel(), 'same')
-          for _h in _H ]
-
+    H = [ cape_util.get_smoothed_hist(cape_util.mag(s)) for s in S ]
     # visualize smoothed hist
     for h in H:
         plt.plot(h); plt.xlim([1,256]); plt.show()
 
-    I_out_side_crr = sidelight_correction(_I_LAB[...,0], I_out, H, S, faces_xywh, _eacp_lambda_)
-    I_out_expo_crr = exposure_correction(_I_LAB[...,0], I_out, I_out_side_crr, skin_masks
+    I_out_side_crr = sidelight_correction(_I_LAB[...,0], I_out, H, S
+                                          , faces_xywh, _eacp_lambda_)
+    I_out_expo_crr = exposure_correction(_I_LAB[...,0], I_out
+                                         , I_out_side_crr, skin_masks
                                          , faces_xywh, _eacp_lambda_)
 
     _I_LAB[...,0] = cape_util.mag( (I_out_expo_crr + 255.0*Detail), 'trim' )

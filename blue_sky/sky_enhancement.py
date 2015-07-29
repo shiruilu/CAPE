@@ -31,29 +31,12 @@ BM_DIR = './benchmarks/'
 
 def in_idea_blue_rg(I_origin):
     img = I_origin.astype(float)
-    IDEAL_SKY_BGR = (225, 180, 165)
+    IDEAL_SKY_BGR = (195, 165, 120)
     # RANGE = (25, 30, 50)
-    RANGE = (45, 55, 65)
+    RANGE = (60, 65, 80)
     return (abs(img[...,0]-IDEAL_SKY_BGR[0]) < RANGE[0]) \
          & (abs(img[...,1]-IDEAL_SKY_BGR[1]) < RANGE[1]) \
          & (abs(img[...,2]-IDEAL_SKY_BGR[2]) < RANGE[2])
-
-def get_smoothed_hist(I_gray, ksize=30, sigma=10):
-    """
-    get smoothed hist from a single channel
-    +TODO: consider replace the calc of face_enhancement.py _H, H
-
-    ARGs:
-    I_gray: MASKED single channle image (not necessarily gray), 0 will not be counted.
-    ksize &
-    sigma:  For Gaussian kernel, following 3*sigma rule
-
-    RETURN:
-    h:      Smoothed hist
-    """
-    _h = cv2.calcHist([I_gray],[0],None,[255],[1,256]).T.ravel()
-    h  = np.correlate(_h, cv2.getGaussianKernel(ksize,sigma).ravel(), 'same')
-    return h
 
 def _var_lenpos(val, pos):
     '''
@@ -121,7 +104,7 @@ def sky_ref_patch_detection(I_origin):
     # detect bimodal
     _L = cv2.cvtColor(I_origin, cv2.COLOR_BGR2LAB)[...,0]
     detect_res = cape_util.detect_bimodal(
-        [get_smoothed_hist( cape_util.mask_skin(_L, sky_prob_map!=0.0) )]
+        [cape_util.get_smoothed_hist( cape_util.mask_skin(_L, sky_prob_map!=0.0) )]
     )[0] # detect_bimodal is an array f
     if (detect_res[0] == True): #could return F or None, must be ==True
         print 'bimodal detected in current sky_ref_patch'

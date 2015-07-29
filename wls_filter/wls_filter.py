@@ -25,7 +25,6 @@ def wlsfilter(image_orig, lambda_=0.4, alpha=1.2, small_eps=1e-4):
     s = image.shape
 
     k = numpy.prod(s)
-    #image = original_image.astype(numpy.float)
 
     dy = numpy.diff(image, 1, 0)
     dy = -lambda_ / (numpy.absolute(dy) ** alpha + small_eps)
@@ -43,10 +42,6 @@ def wlsfilter(image_orig, lambda_=0.4, alpha=1.2, small_eps=1e-4):
     a = a + a.T + spdiags(d, 0, k, k)
     _out = spsolve(a, image.flatten(1)).reshape(s[::-1])
     out = numpy.rollaxis(_out,1)
-    # out = numpy.clip( _out*255.0, 0, 255).astype('uint8')
-    # out = numpy.rint( _out*255.0 ).astype('uint8')
-    # _detail = image - _out
-    # detail = numpy.clip( _detail*255.0, 0, 255 ).astype('uint8')
     detail = image - out
     return out, detail #float
 

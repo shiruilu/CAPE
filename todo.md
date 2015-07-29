@@ -26,3 +26,6 @@ Modify softmax or sigmoid (or log?) to produce a 0-1 barrier for 0<Alpha<1.
 ## Jul 28, 2015
 1. Make (hist)gaussian smoother self adaptive, migrate from face/sky to util
 2. Sky-prob-map's not robust to the wide range of sky pixels, especially dark ones.
+
+## Jul 29, 2015
+1. Try Gaussian kernel density estimation for bimodal detection.

@@ -18,6 +18,25 @@ def safe_convert(x, new_dtype):
     info = np.iinfo(new_dtype)
     return x.clip(info.min, info.max).astype(new_dtype)
 
+def get_smoothed_hist(I_channel, ksize=30, sigma=10):
+    """
+    get smoothed hist from a single channel
+    +TODO: consider replace the calc of face_enhancement.py _H, H
+
+    ARGs:
+    I_channel -- MASKED single channle image (not necessarily gray), 0 will not be counted.
+    ksize &
+    sigma     -- For Gaussian kernel, following 3*sigma rule
+
+    RETURN:
+    h         -- Smoothed hist
+    """
+    # unsmoothed hist (cv2.calcHist return 2d vector)
+    _h = cv2.calcHist([I_channel],[0],None,[255],[1,256]).T.ravel()
+    # smooth hist, correlate only takes 1d input
+    h  = np.correlate(_h, cv2.getGaussianKernel(ksize,sigma).ravel(), 'same')
+    return h
+
 def detect_bimodal(H):
     """
     H: all the (smoothed) histograms of faces on the image
@@ -98,7 +117,7 @@ def display(img, name='', mode='bgr'):
         plt.imshow(img)
     elif mode == 'gray':
         plt.imshow(img, 'gray')
-    elif mode == 'rainbow':
+    elif mode == 'rainbow': # for 0-1 img
         plt.imshow(img, cmap='rainbow')
     else:
         raise ValueError('CAPE display: unkown mode')
