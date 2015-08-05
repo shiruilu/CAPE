@@ -23,7 +23,6 @@ import ss_enhance
 
 import cv2
 import numpy as np
-from matplotlib import pyplot as plt
 import ipdb
 
 IMG_DIR = 'resources/images/'
@@ -39,8 +38,8 @@ def global_enhace(I_bgr, skin_prob_map, sky_prob_map):
     skin_prob_map -- float, 0-1
     sky_prob_map  -- float, 0-1
     """
-    skin_mask = skin_prob_map > 1.0
-    sky_mask  = sky_prob_map  > 0.0
+    skin_mask = skin_prob_map > 0.95
+    sky_mask  = sky_prob_map  > 1000.0
     # stretch the image contrast to full range by clipping 0.5% of the d/b
     _I_bgr_f = I_bgr.astype('float')
     I_intensity = (_I_bgr_f[...,0] + _I_bgr_f[...,1] + _I_bgr_f[...,2])/3.0
@@ -81,7 +80,7 @@ def detail_enhace(I, skin_prob_map, sky_prob_map, c=0.2):
     return cv2.cvtColor(I_lab, cv2.COLOR_LAB2BGR)
 
 def main():
-    img_name = 'pic2.jpg'
+    img_name = 'pic23.jpg'
     I_org = cv2.imread(IMG_DIR+ img_name)
     skin_prob_map = apa_skin.skin_prob_map(I_org)
     lambda_ = 120
@@ -90,7 +89,8 @@ def main():
     cape_util.display( np.hstack([I_org,res_skin]), name='res_skin' )
     res_sky, sky_prob_map = sky_enhancement.sky_enhancement(res_skin)
     cape_util.display( np.hstack([I_org,res_sky]), name='res_sky' )
-    res_ge = global_enhace(res_sky, skin_prob_map ,sky_prob_map)
+    # res_ge = global_enhace(res_sky, skin_prob_map ,sky_prob_map)
+    res_ge = global_enhace(res_skin, skin_prob_map ,sky_prob_map)
     cape_util.display( np.hstack([I_org,res_ge]), name='res_ge' )
     res_ss = ss_enhance.ss_enhance(res_ge)
     cape_util.display( np.hstack([I_org,res_ss]), name='res_ss' )
