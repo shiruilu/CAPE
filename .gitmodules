@@ -1,0 +1,3 @@
+[submodule "pySaliencyMap"]
+	path = pySaliencyMap
+	url = git@github.com:shiruilu/pySaliencyMap.git
