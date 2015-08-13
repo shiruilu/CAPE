@@ -1,3 +1,6 @@
 [submodule "pySaliencyMap"]
 	path = pySaliencyMap
 	url = git@github.com:shiruilu/pySaliencyMap.git
+[submodule "modal_detection/kde_for_scipy"]
+	path = modal_detection/kde_for_scipy
+	url = git@github.com:shiruilu/KDE-for-SciPy.git
