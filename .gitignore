@@ -1,2 +1,6 @@
 *.pyc
 *.png
+GTAGS
+GPATH
+GRTAGS
+papers/
